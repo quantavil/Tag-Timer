@@ -1,0 +1,75 @@
+/* --- Analytics View Styles --- */
+
+.analytics-container {
+    padding: 15px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.analytics-card {
+    background-color: var(--background-secondary);
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.analytics-card h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    border-bottom: 1px solid var(--background-modifier-border);
+    padding-bottom: 10px;
+}
+
+.chart-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 15px;
+    flex: 1;
+}
+
+.chart-card {
+    display: flex;
+    flex-direction: column;
+}
+
+.canvas-container {
+    position: relative;
+    flex: 1;
+    min-height: 200px;
+}
+
+.daily-total {
+    text-align: center;
+    font-weight: 500;
+    font-size: 1.1em;
+    margin-top: 15px;
+}
+
+.reset-analytics-button {
+    background-color: #B00020; /* Muted dark red */
+    color: var(--text-on-accent);
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    width: fit-content;
+    align-self: center;
+    margin-top: 15px;
+}
+
+.reset-analytics-button:hover {
+    background-color: #8B0000; /* Slightly darker red on hover */
+}
+
+.timer-r {
+    color: #32CD32;
+}
+
+.timer-p {
+    color: orange;
+}
+
+.timer-btn {
+    color: #32CD32;
+}

@@ -1,0 +1,13 @@
+{
+  "autoStopTimers": "quit",
+  "timerInsertLocation": "tail",
+  "timersState": {
+  },
+  "dailyReset": true,
+  "lastResetDate": "2025-08-05",
+  "enableCheckboxToTimer": true,
+  "runningCheckboxState": "/",
+  "pausedCheckboxState": "-xx",
+  "checkboxToTimerPathRestriction": "disable",
+  "pathRestrictionPaths": []
+}
