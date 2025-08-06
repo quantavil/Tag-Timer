@@ -3,26 +3,21 @@
 const obsidian = require('obsidian');
 const { EditorView } = require('@codemirror/view');
 
-// Regex constants
-const UPDATE_INTERVAL = 1000;
-const ORDERED_LIST = /(^\s*#*\d+\.\s)/;
-const UNORDERED_LIST = /(^\s*#*[-/+/*]\s)/;
-const HEADER = /(^\s*#+\s)/;
-
-const BASE62_CHARS = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-
-function compressId(timestamp) {
-    if (!timestamp) timestamp = Date.now();
-    let num = timestamp;
-    if (num === 0) return 't0';
-
-    let result = '';
-    while (num > 0) {
-        result = BASE62_CHARS[num % 62] + result;
-        num = Math.floor(num / 62);
+// Consolidated Constants
+const CONSTANTS = {
+    UPDATE_INTERVAL: 1000,
+    BASE62_CHARS: '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ',
+    ANALYTICS_VIEW_TYPE: "timer-analytics-view",
+    REGEX: {
+        ORDERED_LIST: /(^\s*#*\d+\.\s)/,
+        UNORDERED_LIST: /(^\s*#*[-/+/*]\s)/,
+        HEADER: /(^\s*#+\s)/,
+        TIMER_SPAN: /<span class="timer-[rp]"[^>]*>.*?<\/span>/,
+        OLD_TIMER: /<span class="timer-btn"[^>]*>.*?<\/span>/,
+        NEW_FORMAT: /<span class="(timer-r|timer-p)" id="([^"]+)" data-dur="(\d+)" data-ts="(\d+)">.*?<\/span>/g,
+        HASHTAGS: /#\w+/g
     }
-    return result;
-}
+};
 
 const LANG = {
     command_name: {
@@ -69,58 +64,91 @@ const LANG = {
     }
 };
 
+// Consolidated Utility Functions
+class TimerUtils {
+    static compressId(timestamp = Date.now()) {
+        if (timestamp === 0) return 't0';
+        let num = timestamp;
+        let result = '';
+        while (num > 0) {
+            result = CONSTANTS.BASE62_CHARS[num % 62] + result;
+            num = Math.floor(num / 62);
+        }
+        return result;
+    }
+
+    static formatDuration(totalSeconds) {
+        if (totalSeconds === 0) return '0s';
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = Math.floor(totalSeconds % 60);
+        const parts = [];
+        if (hours > 0) parts.push(`${hours}h`);
+        if (minutes > 0) parts.push(`${minutes}m`);
+        if (seconds > 0) parts.push(`${seconds}s`);
+        return parts.join(' ');
+    }
+
+    static formatTagLabel(tag) {
+        return tag.startsWith('#') ? tag.substring(1) : tag;
+    }
+
+    static formatTimeDisplay(totalSeconds) {
+        const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+        const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+        const seconds = String(totalSeconds % 60).padStart(2, '0');
+        return `${hours}:${minutes}:${seconds}`;
+    }
+
+    static getCurrentTimestamp() {
+        return Math.floor(Date.now() / 1000);
+    }
+
+    static getTodayString() {
+        return new Date().toISOString().slice(0, 10);
+    }
+}
+
 class TimerDataUpdater {
-    static calculate(action, oldData, now = Math.floor(Date.now() / 1000)) {
-        let newData;
-        switch (action) {
-            case 'init':
-                newData = {
-                    class: 'timer-r',
-                    timerId: compressId(),
-                    dur: 0,
-                    ts: now
-                };
-                break;
-            case 'continue':
-                newData = { ...oldData, class: 'timer-r', ts: now };
-                break;
-            case 'pause':
+    static calculate(action, oldData, now = TimerUtils.getCurrentTimestamp()) {
+        const actions = {
+            init: () => ({
+                class: 'timer-r',
+                timerId: TimerUtils.compressId(),
+                dur: 0,
+                ts: now
+            }),
+            continue: () => ({ ...oldData, class: 'timer-r', ts: now }),
+            pause: () => {
                 const elapsed = oldData ? now - oldData.ts : 0;
-                newData = { ...oldData, class: 'timer-p', dur: (oldData.dur || 0) + elapsed, ts: now };
-                break;
-            case 'update':
+                return { ...oldData, class: 'timer-p', dur: (oldData.dur || 0) + elapsed, ts: now };
+            },
+            update: () => {
                 if (oldData.class !== 'timer-r') return oldData;
                 const updateElapsed = now - oldData.ts;
-                newData = { ...oldData, dur: (oldData.dur || 0) + updateElapsed, ts: now };
-                break;
-            case 'restore':
+                return { ...oldData, dur: (oldData.dur || 0) + updateElapsed, ts: now };
+            },
+            restore: () => {
                 const restoreElapsed = oldData ? now - oldData.ts : 0;
-                newData = { ...oldData, class: 'timer-r', dur: (oldData.dur || 0) + restoreElapsed, ts: now };
-                break;
-            case 'forcepause':
-                newData = { ...oldData, class: 'timer-p' };
-                break;
-            default:
-                newData = oldData;
-                break;
-        }
-        return newData;
+                return { ...oldData, class: 'timer-r', dur: (oldData.dur || 0) + restoreElapsed, ts: now };
+            },
+            forcepause: () => ({ ...oldData, class: 'timer-p' })
+        };
+
+        return actions[action] ? actions[action]() : oldData;
     }
 }
 
 class TimerManager {
     constructor() {
-        this.timers = new Map(); // timerId -> { intervalId, data }
-        this.startedIds = new Set(); // Tracks all timerIds started in this session
+        this.timers = new Map();
+        this.startedIds = new Set();
     }
 
     startTimer(timerId, initialData, tickCallback) {
-        if (this.hasTimer(timerId)) {
-            return;
-        }
-        const intervalId = setInterval(() => {
-            tickCallback(timerId);
-        }, UPDATE_INTERVAL);
+        if (this.hasTimer(timerId)) return;
+        
+        const intervalId = setInterval(() => tickCallback(timerId), CONSTANTS.UPDATE_INTERVAL);
         this.timers.set(timerId, { intervalId, data: initialData });
         this.startedIds.add(timerId);
     }
@@ -135,9 +163,7 @@ class TimerManager {
 
     updateTimerData(timerId, newData) {
         const timer = this.timers.get(timerId);
-        if (timer) {
-            timer.data = newData;
-        }
+        if (timer) timer.data = newData;
     }
 
     getTimerData(timerId) {
@@ -167,88 +193,94 @@ class TimerFileManager {
     constructor(app, settings) {
         this.app = app;
         this.settings = settings;
-        this.locations = new Map(); // timerId -> { view, file, lineNum }
+        this.locations = new Map();
+    }
+
+    async getLineText(view, file, lineNum) {
+        return view.getMode() === 'source' 
+            ? view.editor.getLine(lineNum)
+            : (await this.app.vault.read(file)).split('\n')[lineNum] || '';
     }
 
     async writeTimer(timerId, timerData, view, file, lineNum, parsedResult = null) {
+        const newSpan = TimerRenderer.render(timerData);
+        
         if (view.getMode() === 'preview') {
-            const content = await this.app.vault.read(file);
-            const lines = content.split('\n');
-            let modified = false;
-            let line = lines[lineNum];
-            const newSpan = TimerRenderer.render(timerData);
-            const timerRE = /<span class="timer-[rp]"[^>]*>.*?<\/span>/;
-
-            if (line.match(timerRE)) {
-                lines[lineNum] = line.replace(timerRE, newSpan);
-                modified = true;
-            } else if (parsedResult === null) {
-                const position = this.calculateInsertPosition({ getLine: () => line }, 0, this.settings.timerInsertLocation);
-                if (position.before === 0) {
-                    lines[lineNum] = newSpan + ' ' + line;
-                } else if (position.before === line.length) {
-                    lines[lineNum] = line + ' ' + newSpan;
-                } else {
-                    lines[lineNum] = line.substring(0, position.before) + ' ' + newSpan + ' ' + line.substring(position.before);
-                }
-                modified = true;
-            }
-
-            if (modified) {
-                await this.app.vault.modify(file, lines.join('\n'));
-            }
-        } else { // Source mode
-            const editor = view.editor;
-            const newSpan = TimerRenderer.render(timerData);
-            let before, after;
-            let needsSpacing = false;
-
-            if (parsedResult && parsedResult.timerId === timerId) {
-                before = parsedResult.beforeIndex;
-                after = parsedResult.afterIndex;
-            } else {
-                const position = this.calculateInsertPosition(editor, lineNum, this.settings.timerInsertLocation);
-                before = position.before;
-                after = position.after;
-                needsSpacing = true;
-            }
-
-            const finalSpan = needsSpacing ? ' ' + newSpan + ' ' : newSpan;
-            editor.replaceRange(finalSpan, { line: lineNum, ch: before }, { line: lineNum, ch: after });
+            await this.writeTimerPreview(file, lineNum, newSpan, parsedResult);
+        } else {
+            this.writeTimerSource(view.editor, lineNum, newSpan, parsedResult, timerId);
         }
+        
         this.locations.set(timerId, { view, file, lineNum });
         return timerId;
     }
 
-    async updateTimerByIdWithSearch(timerId, timerData) {
-        const location = this.locations.get(timerId);
-        if (!location || !location.view.file) {
+    async writeTimerPreview(file, lineNum, newSpan, parsedResult) {
+        const content = await this.app.vault.read(file);
+        const lines = content.split('\n');
+        let line = lines[lineNum];
+        let modified = false;
+
+        if (line.match(CONSTANTS.REGEX.TIMER_SPAN)) {
+            lines[lineNum] = line.replace(CONSTANTS.REGEX.TIMER_SPAN, newSpan);
+            modified = true;
+        } else if (parsedResult === null) {
+            const position = this.calculateInsertPosition({ getLine: () => line }, 0, this.settings.timerInsertLocation);
+            lines[lineNum] = this.insertSpanAtPosition(line, newSpan, position);
+            modified = true;
+        }
+
+        if (modified) {
+            await this.app.vault.modify(file, lines.join('\n'));
+        }
+    }
+
+    writeTimerSource(editor, lineNum, newSpan, parsedResult, timerId) {
+        let before, after, needsSpacing = false;
+
+        if (parsedResult?.timerId === timerId) {
+            before = parsedResult.beforeIndex;
+            after = parsedResult.afterIndex;
+        } else {
+            const position = this.calculateInsertPosition(editor, lineNum, this.settings.timerInsertLocation);
+            before = position.before;
+            after = position.after;
+            needsSpacing = true;
+        }
+
+        const finalSpan = needsSpacing ? ` ${newSpan} ` : newSpan;
+        editor.replaceRange(finalSpan, { line: lineNum, ch: before }, { line: lineNum, ch: after });
+    }
+
+    insertSpanAtPosition(line, span, position) {
+        if (position.before === 0) return `${span} ${line}`;
+        if (position.before === line.length) return `${line} ${span}`;
+        return `${line.substring(0, position.before)} ${span} ${line.substring(position.before)}`;
+    }
+
+    async updateTimer(timerId, timerData, location = null) {
+        const timerLocation = location || this.locations.get(timerId);
+        if (!timerLocation?.view?.file) {
             return this.settings.autoStopTimers !== 'close';
         }
 
-        const { view, file, lineNum } = location;
-        let lineText;
-        if (view.getMode() === 'source') {
-            lineText = view.editor.getLine(lineNum);
-        } else if (view.getMode() === 'preview') {
-            const content = await this.app.vault.read(file);
-            lineText = content.split('\n')[lineNum] || '';
-        }
-
+        const { view, file, lineNum } = timerLocation;
+        const lineText = await this.getLineText(view, file, lineNum);
         const parsed = TimerParser.parse(lineText, 'auto', timerId);
+        
         if (parsed) {
-            this.writeTimer(timerId, timerData, view, file, lineNum, parsed);
+            await this.writeTimer(timerId, timerData, view, file, lineNum, parsed);
             return true;
-        } else {
-            const found = await this.findTimerGlobally(timerId);
-            if (found) {
-                this.writeTimer(timerId, timerData, found.view, found.file, found.lineNum, found.parsed);
-                return true;
-            } else {
-                console.warn(`Timer with ID ${timerId} not found in file ${file.path}, stopping timer.`);
-                return false;
-            }
         }
+        
+        const found = await this.findTimerGlobally(timerId);
+        if (found) {
+            await this.writeTimer(timerId, timerData, found.view, found.file, found.lineNum, found.parsed);
+            return true;
+        }
+        
+        console.warn(`Timer ${timerId} not found, stopping timer.`);
+        return false;
     }
 
     async findTimerGlobally(timerId) {
@@ -256,22 +288,31 @@ class TimerFileManager {
         if (!location) return null;
 
         const { view, file } = location;
-        if (view.getMode() === 'source') {
-            const editor = view.editor;
-            for (let i = 0; i < editor.lineCount(); i++) {
-                const parsed = TimerParser.parse(editor.getLine(i), 'auto', timerId);
-                if (parsed && parsed.timerId === timerId) {
-                    return { view, file, lineNum: i, parsed };
-                }
+        const searchMethod = view.getMode() === 'source' ? 
+            this.searchInEditor.bind(this) : 
+            this.searchInFile.bind(this);
+        
+        return await searchMethod(view, file, timerId);
+    }
+
+    async searchInEditor(view, file, timerId) {
+        const editor = view.editor;
+        for (let i = 0; i < editor.lineCount(); i++) {
+            const parsed = TimerParser.parse(editor.getLine(i), 'auto', timerId);
+            if (parsed?.timerId === timerId) {
+                return { view, file, lineNum: i, parsed };
             }
-        } else if (view.getMode() === 'preview') {
-            const content = await this.app.vault.read(file);
-            const lines = content.split('\n');
-            for (let i = 0; i < lines.length; i++) {
-                const parsed = TimerParser.parse(lines[i], 'auto', timerId);
-                if (parsed && parsed.timerId === timerId) {
-                    return { view, file, lineNum: i, parsed };
-                }
+        }
+        return null;
+    }
+
+    async searchInFile(view, file, timerId) {
+        const content = await this.app.vault.read(file);
+        const lines = content.split('\n');
+        for (let i = 0; i < lines.length; i++) {
+            const parsed = TimerParser.parse(lines[i], 'auto', timerId);
+            if (parsed?.timerId === timerId) {
+                return { view, file, lineNum: i, parsed };
             }
         }
         return null;
@@ -279,22 +320,29 @@ class TimerFileManager {
 
     calculateInsertPosition(editor, lineNum, insertLocation) {
         const lineText = editor.getLine(lineNum) || '';
+        
         if (insertLocation === 'head') {
-
-            const orderedListMatch = ORDERED_LIST.exec(lineText);
-            if (orderedListMatch) return { before: orderedListMatch[0].length, after: orderedListMatch[0].length };
-
-            const ulMatch = UNORDERED_LIST.exec(lineText);
-            if (ulMatch) return { before: ulMatch[0].length, after: ulMatch[0].length };
-
-            const headerMatch = HEADER.exec(lineText);
-            if (headerMatch) return { before: headerMatch[0].length, after: headerMatch[0].length };
-
-            return { before: 0, after: 0 };
+            return this.findHeadPosition(lineText);
         } else if (insertLocation === 'tail') {
             return { before: lineText.length, after: lineText.length };
         }
-        return { before: 0, after: 0 }; // Default to head
+        return { before: 0, after: 0 };
+    }
+
+    findHeadPosition(lineText) {
+        const patterns = [
+            CONSTANTS.REGEX.ORDERED_LIST,
+            CONSTANTS.REGEX.UNORDERED_LIST,
+            CONSTANTS.REGEX.HEADER
+        ];
+
+        for (const pattern of patterns) {
+            const match = pattern.exec(lineText);
+            if (match) {
+                return { before: match[0].length, after: match[0].length };
+            }
+        }
+        return { before: 0, after: 0 };
     }
 
     clearLocations() {
@@ -305,17 +353,15 @@ class TimerFileManager {
         const content = await this.app.vault.read(file);
         const lines = content.split('\n');
         let modified = false;
-        const oldSpanRegex = /<span class="timer-btn"[^>]*>.*?<\/span>/;
 
         for (let i = 0; i < lines.length; i++) {
-            let line = lines[i];
-            if (!line.includes('timer-btn')) continue;
+            if (!lines[i].includes('timer-btn')) continue;
 
-            const parsed = TimerParser.parse(line, 'v1');
+            const parsed = TimerParser.parse(lines[i], 'v1');
             if (parsed) {
                 modified = true;
                 const newSpan = TimerRenderer.render(parsed);
-                lines[i] = line.replace(oldSpanRegex, newSpan);
+                lines[i] = lines[i].replace(CONSTANTS.REGEX.OLD_TIMER, newSpan);
             }
         }
 
@@ -327,73 +373,94 @@ class TimerFileManager {
 
 class TimerRenderer {
     static render(timerData) {
-        const totalSeconds = timerData.dur;
-        const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
-        const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
-        const seconds = String(totalSeconds % 60).padStart(2, '0');
-        const formatted = `${hours}:${minutes}:${seconds}`;
+        const formatted = TimerUtils.formatTimeDisplay(timerData.dur);
+        const timerIcon = this.getTimerIcon(timerData);
         
-        let timerIcon = '⏳';
-        if (timerData.class === 'timer-r') {
-            timerIcon = totalSeconds % 2 === 0 ? '⌛' : '⏳';
-        }
-
         return `<span class="${timerData.class}" id="${timerData.timerId}" data-dur="${timerData.dur}" data-ts="${timerData.ts}">【${timerIcon}${formatted} 】</span>`;
+    }
+
+    static getTimerIcon(timerData) {
+        if (timerData.class === 'timer-r') {
+            return timerData.dur % 2 === 0 ? '⌛' : '⏳';
+        }
+        return '⏳';
     }
 }
 
 class TimerParser {
     static parse(lineText, version = 'auto', targetTimerId = null) {
-        const tpl = document.createElement('template');
-        tpl.innerHTML = lineText;
-
-        if (version === 'v1' || version === 'auto') {
-            const oldSelector = targetTimerId ? `.timer-btn[timerId="${targetTimerId}"]` : '.timer-btn';
-            const oldTimer = tpl.content.querySelector(oldSelector);
-            if (oldTimer) return this.parseOldFormat(lineText, oldTimer);
+        if (version === 'v1') {
+            return this.parseOldFormat(lineText);
         }
-        if (version === 'v2' || version === 'auto') {
-            const newSelector = targetTimerId ? `.timer-r[id="${targetTimerId}"], .timer-p[id="${targetTimerId}"]` : '.timer-r, .timer-p';
-            const newTimer = tpl.content.querySelector(newSelector);
-            if (newTimer) return this.parseNewFormat(lineText, newTimer);
+
+        const newResult = this.parseNewFormat(lineText, targetTimerId);
+        if (newResult) return newResult;
+
+        if (version === 'auto') {
+            return this.parseOldFormat(lineText);
+        }
+
+        return null;
+    }
+
+    static parseNewFormat(lineText, targetTimerId = null) {
+        const regex = new RegExp(CONSTANTS.REGEX.NEW_FORMAT.source, 'g');
+        let match;
+        
+        while ((match = regex.exec(lineText)) !== null) {
+            const timerId = match[2];
+            if (!targetTimerId || targetTimerId === timerId) {
+                return {
+                    class: match[1],
+                    timerId: timerId,
+                    dur: parseInt(match[3], 10),
+                    ts: parseInt(match[4], 10),
+                    beforeIndex: match.index,
+                    afterIndex: match.index + match[0].length
+                };
+            }
         }
         return null;
     }
 
-    static parseOldFormat(lineText, timerEl) {
-        const oldId = timerEl.getAttribute('timerId') || timerEl.getAttribute('data-timerId');
-        const status = timerEl.getAttribute('Status') || timerEl.getAttribute('data-Status');
-        const dur = parseInt(timerEl.getAttribute('AccumulatedTime') || timerEl.getAttribute('data-AccumulatedTime'), 10);
-        const ts = parseInt(timerEl.getAttribute('currentStartTimeStamp') || timerEl.getAttribute('data-currentStartTimeStamp'), 10);
-        const newId = oldId ? compressId(parseInt(oldId)) : compressId();
-        const regex = new RegExp(`<span[^>]*timerId="${oldId}"[^>]*>.*?<\/span>`);
-        const match = lineText.match(regex);
-        if (!match) return null;
+    static parseOldFormat(lineText) {
+        const spanMatch = lineText.match(/<span class="timer-btn"([^>]*)>.*?<\/span>/);
+        if (!spanMatch) return null;
 
+        const attrs = this.parseAttributes(spanMatch[1]);
+        if (!this.hasRequiredAttributes(attrs)) return null;
+
+        const oldId = attrs.timerId;
+        const newId = oldId ? TimerUtils.compressId(parseInt(oldId)) : TimerUtils.compressId();
+        
         return {
-            class: status === 'Running' ? 'timer-r' : 'timer-p',
+            class: attrs.Status === 'Running' ? 'timer-r' : 'timer-p',
             timerId: newId,
-            dur: dur,
-            ts: ts,
-            beforeIndex: match.index,
-            afterIndex: match.index + match[0].length
+            dur: parseInt(attrs.AccumulatedTime, 10),
+            ts: parseInt(attrs.currentStartTimeStamp, 10),
+            beforeIndex: spanMatch.index,
+            afterIndex: spanMatch.index + spanMatch[0].length
         };
     }
 
-    static parseNewFormat(lineText, timerEl) {
-        const timerId = timerEl.id;
-        const regex = new RegExp(`<span[^>]*id="${timerId}"[^>]*>.*?<\/span>`);
-        const match = lineText.match(regex);
-        if (!match) return null;
-
-        return {
-            class: timerEl.className,
-            timerId: timerId,
-            dur: parseInt(timerEl.dataset.dur, 10),
-            ts: parseInt(timerEl.dataset.ts, 10),
-            beforeIndex: match.index,
-            afterIndex: match.index + match[0].length
+    static parseAttributes(attrsText) {
+        const patterns = {
+            timerId: /(?:data-)?timerId="([^"]+)"/,
+            Status: /(?:data-)?Status="([^"]+)"/,
+            AccumulatedTime: /(?:data-)?AccumulatedTime="(\d+)"/,
+            currentStartTimeStamp: /(?:data-)?currentStartTimeStamp="(\d+)"/
         };
+
+        const attrs = {};
+        for (const [key, pattern] of Object.entries(patterns)) {
+            const match = attrsText.match(pattern);
+            if (match) attrs[key] = match[1];
+        }
+        return attrs;
+    }
+
+    static hasRequiredAttributes(attrs) {
+        return attrs.timerId && attrs.Status && attrs.AccumulatedTime && attrs.currentStartTimeStamp;
     }
 }
 
@@ -407,11 +474,17 @@ class TimerPlugin extends obsidian.Plugin {
             dailyReset: true,
             lastResetDate: ''
         };
+        
         await this.loadSettings();
         this.fileManager = new TimerFileManager(this.app, this.settings);
+        
+        await this.handleDailyReset();
+        this.setupCommands();
+        this.setupEventHandlers();
+        this.setupAnalyticsView();
+    }
 
-        this.handleDailyReset();
-
+    setupCommands() {
         this.addCommand({
             id: 'toggle-timer',
             icon: 'alarm-clock',
@@ -420,11 +493,12 @@ class TimerPlugin extends obsidian.Plugin {
                 const lineNum = editor.getCursor().line;
                 const lineText = editor.getLine(lineNum);
                 const parsed = TimerParser.parse(lineText, 'auto');
+                
                 if (parsed) {
-                    if (parsed.class === 'timer-r') this.handlePause(view, lineNum, parsed);
-                    else if (parsed.class === 'timer-p') this.handleContinue(view, lineNum, parsed);
+                    const action = parsed.class === 'timer-r' ? 'pause' : 'continue';
+                    this.handleTimerAction(action, view, lineNum, parsed);
                 } else {
-                    this.handleStart(view, lineNum);
+                    this.handleTimerAction('start', view, lineNum);
                 }
             },
         });
@@ -437,50 +511,92 @@ class TimerPlugin extends obsidian.Plugin {
                 const lineNum = editor.getCursor().line;
                 const lineText = editor.getLine(lineNum);
                 const parsed = TimerParser.parse(lineText, 'auto');
-                if (parsed) this.handleDelete(view, lineNum, parsed);
+                if (parsed) this.handleTimerAction('delete', view, lineNum, parsed);
             },
-        });
-
-        this.registerEvent(this.app.workspace.on('editor-menu', this.onEditorMenu.bind(this)));
-        this.registerEvent(this.app.workspace.on('file-open', this.onFileOpen.bind(this)));
-        this.app.workspace.onLayoutReady(() => this.restoreAllTimers());
-
-        this.addSettingTab(new TimerSettingTab(this.app, this));
-
-        this.registerView(
-            ANALYTICS_VIEW_TYPE,
-            (leaf) => new TimerAnalyticsView(leaf)
-        );
-
-        this.addRibbonIcon("pie-chart", "Open Timer Analytics", () => {
-            this.activateView();
         });
 
         this.addCommand({
             id: 'open-timer-analytics',
             name: 'Open Timer Analytics',
-            callback: () => {
-                this.activateView();
-            },
+            callback: () => this.activateView(),
         });
 
         this.addCommand({
             id: 'reset-timer-analytics',
             name: 'Reset Timer Analytics',
-            callback: async () => {
-                const confirmation = confirm("Are you sure you want to delete all analytics data?");
-                if (confirmation) {
-                    const analyticsPath = this.app.vault.configDir + '/plugins/text-block-timer/analytics.json';
-                    await this.app.vault.adapter.write(analyticsPath, JSON.stringify([], null, 2));
-                    // Refresh the view if it's open
-                    const leaves = this.app.workspace.getLeavesOfType(ANALYTICS_VIEW_TYPE);
-                    if (leaves.length > 0) {
-                        leaves[0].view.onOpen();
-                    }
-                }
-            },
+            callback: () => this.resetAnalytics(),
         });
     }
+
+    setupEventHandlers() {
+        this.registerEvent(this.app.workspace.on('editor-menu', this.onEditorMenu.bind(this)));
+        this.registerEvent(this.app.workspace.on('file-open', this.onFileOpen.bind(this)));
+        this.app.workspace.onLayoutReady(() => this.restoreAllTimers());
+    }
+
+    setupAnalyticsView() {
+        this.registerView(CONSTANTS.ANALYTICS_VIEW_TYPE, (leaf) => new TimerAnalyticsView(leaf));
+        this.addRibbonIcon("pie-chart", "Open Timer Analytics", () => this.activateView());
+        this.addSettingTab(new TimerSettingTab(this.app, this));
+    }
+
+    async handleTimerAction(action, view, lineNum, parsedData = null) {
+        const handlers = {
+            start: () => {
+                const initialData = TimerDataUpdater.calculate('init', {});
+                this.manager.startTimer(initialData.timerId, initialData, this.onTick.bind(this));
+                return this.fileManager.writeTimer(initialData.timerId, initialData, view, view.file, lineNum, null);
+            },
+            continue: () => {
+                if (!parsedData?.timerId) return;
+                const currentData = this.manager.getTimerData(parsedData.timerId) || parsedData;
+                const newData = TimerDataUpdater.calculate('continue', currentData);
+                this.manager.startTimer(parsedData.timerId, newData, this.onTick.bind(this));
+                return this.fileManager.writeTimer(parsedData.timerId, newData, view, view.file, lineNum, parsedData);
+            },
+            pause: () => {
+                if (!parsedData?.timerId) return;
+                const currentData = this.manager.getTimerData(parsedData.timerId) || parsedData;
+                const newData = TimerDataUpdater.calculate('pause', currentData);
+                this.manager.stopTimer(parsedData.timerId);
+                this.fileManager.writeTimer(parsedData.timerId, newData, view, view.file, lineNum, parsedData);
+                this.logAnalytics(newData, view.editor.getLine(lineNum), view.file.path);
+            },
+            delete: () => {
+                if (!parsedData?.timerId) return;
+                this.manager.stopTimer(parsedData.timerId);
+                this.fileManager.locations.delete(parsedData.timerId);
+                if (view.getMode() === 'source') {
+                    view.editor.replaceRange('', 
+                        { line: lineNum, ch: parsedData.beforeIndex }, 
+                        { line: lineNum, ch: parsedData.afterIndex });
+                }
+                this.logAnalytics(parsedData, view.editor.getLine(lineNum), view.file.path);
+                this.cleanupTimerState(parsedData.timerId);
+            },
+            restore: () => {
+                if (!parsedData?.timerId) return;
+                const newData = TimerDataUpdater.calculate('restore', parsedData);
+                this.manager.startTimer(parsedData.timerId, newData, this.onTick.bind(this));
+                this.fileManager.writeTimer(parsedData.timerId, newData, view, view.file, lineNum, parsedData);
+            },
+            forcepause: () => {
+                if (!parsedData?.timerId) return;
+                const newData = TimerDataUpdater.calculate('forcepause', parsedData);
+                this.fileManager.writeTimer(parsedData.timerId, newData, view, view.file, lineNum, parsedData);
+            }
+        };
+
+        return handlers[action]?.();
+    }
+
+    // Individual handler methods for backward compatibility
+    handleStart(view, lineNum) { return this.handleTimerAction('start', view, lineNum); }
+    handleContinue(view, lineNum, parsedData) { return this.handleTimerAction('continue', view, lineNum, parsedData); }
+    handlePause(view, lineNum, parsedData) { return this.handleTimerAction('pause', view, lineNum, parsedData); }
+    handleDelete(view, lineNum, parsedData) { return this.handleTimerAction('delete', view, lineNum, parsedData); }
+    handleRestore(view, lineNum, parsedData) { return this.handleTimerAction('restore', view, lineNum, parsedData); }
+    handleForcePause(view, lineNum, parsedData) { return this.handleTimerAction('forcepause', view, lineNum, parsedData); }
 
     onunload() {
         this.manager.clearAll();
@@ -492,73 +608,49 @@ class TimerPlugin extends obsidian.Plugin {
         const lineText = editor.getLine(lineNum);
         const parsed = TimerParser.parse(lineText, 'auto');
 
-        if (parsed) {
-            if (parsed.class === 'timer-r') {
-                menu.addItem(item => item.setTitle(LANG.action_paused).setIcon('pause').onClick(() => this.handlePause(view, lineNum, parsed)));
-            } else {
-                menu.addItem(item => item.setTitle(LANG.action_continue).setIcon('play').onClick(() => this.handleContinue(view, lineNum, parsed)));
-            }
-            menu.addItem(item => item.setTitle(LANG.command_name.delete).setIcon('trash').onClick(() => this.handleDelete(view, lineNum, parsed)));
+        const menuItems = parsed ? this.getRunningMenuItems(parsed) : this.getNewTimerMenuItems();
+        
+        menuItems.forEach(item => {
+            menu.addItem(menuItem => 
+                menuItem.setTitle(item.title)
+                         .setIcon(item.icon)
+                         .onClick(() => item.action(view, lineNum, parsed))
+            );
+        });
+    }
+
+    getRunningMenuItems(parsed) {
+        const items = [];
+        
+        if (parsed.class === 'timer-r') {
+            items.push({
+                title: LANG.action_paused,
+                icon: 'pause',
+                action: (view, lineNum, parsed) => this.handlePause(view, lineNum, parsed)
+            });
         } else {
-            menu.addItem(item => item.setTitle(LANG.action_start).setIcon('play').onClick(() => this.handleStart(view, lineNum)));
+            items.push({
+                title: LANG.action_continue,
+                icon: 'play',
+                action: (view, lineNum, parsed) => this.handleContinue(view, lineNum, parsed)
+            });
         }
+        
+        items.push({
+            title: LANG.command_name.delete,
+            icon: 'trash',
+            action: (view, lineNum, parsed) => this.handleDelete(view, lineNum, parsed)
+        });
+        
+        return items;
     }
 
-    
-
-    handleStart(view, lineNum) {
-        const initialData = TimerDataUpdater.calculate('init', {});
-        this.manager.startTimer(initialData.timerId, initialData, this.onTick.bind(this));
-        this.fileManager.writeTimer(initialData.timerId, initialData, view, view.file, lineNum, null);
-    }
-
-    handleContinue(view, lineNum, parsedData) {
-        if (!parsedData?.timerId) return;
-        const { timerId } = parsedData;
-        const currentData = this.manager.getTimerData(timerId) || parsedData;
-        const newData = TimerDataUpdater.calculate('continue', currentData);
-        this.manager.startTimer(timerId, newData, this.onTick.bind(this));
-        this.fileManager.writeTimer(timerId, newData, view, view.file, lineNum, parsedData);
-    }
-
-    handlePause(view, lineNum, parsedData) {
-        if (!parsedData?.timerId) return;
-        const { timerId } = parsedData;
-        const currentData = this.manager.getTimerData(timerId) || parsedData;
-        const newData = TimerDataUpdater.calculate('pause', currentData);
-        this.manager.stopTimer(timerId);
-        this.fileManager.writeTimer(timerId, newData, view, view.file, lineNum, parsedData);
-        this.logAnalytics(newData, view.editor.getLine(lineNum), view.file.path);
-    }
-
-    handleDelete(view, lineNum, parsedData) {
-        if (!parsedData?.timerId) return;
-        const { timerId } = parsedData;
-        this.manager.stopTimer(timerId);
-        this.fileManager.locations.delete(timerId);
-        if (view.getMode() === 'source') {
-            view.editor.replaceRange('', { line: lineNum, ch: parsedData.beforeIndex }, { line: lineNum, ch: parsedData.afterIndex });
-        }
-        this.logAnalytics(parsedData, view.editor.getLine(lineNum), view.file.path);
-        // Clean up the state for the deleted timer
-        if (this.settings.timersState && this.settings.timersState[timerId]) {
-            delete this.settings.timersState[timerId];
-            this.saveSettings();
-        }
-    }
-
-    handleRestore(view, lineNum, parsedData) {
-        if (!parsedData?.timerId) return;
-        const { timerId } = parsedData;
-        const newData = TimerDataUpdater.calculate('restore', parsedData);
-        this.manager.startTimer(timerId, newData, this.onTick.bind(this));
-        this.fileManager.writeTimer(timerId, newData, view, view.file, lineNum, parsedData);
-    }
-
-    handleForcePause(view, lineNum, parsedData) {
-        if (!parsedData?.timerId) return;
-        const newData = TimerDataUpdater.calculate('forcepause', parsedData);
-        this.fileManager.writeTimer(parsedData.timerId, newData, view, view.file, lineNum, parsedData);
+    getNewTimerMenuItems() {
+        return [{
+            title: LANG.action_start,
+            icon: 'play',
+            action: (view, lineNum) => this.handleStart(view, lineNum)
+        }];
     }
 
     async onTick(timerId) {
@@ -568,7 +660,7 @@ class TimerPlugin extends obsidian.Plugin {
         const newData = TimerDataUpdater.calculate('update', oldData);
         this.manager.updateTimerData(timerId, newData);
 
-        const updated = await this.fileManager.updateTimerByIdWithSearch(timerId, newData);
+        const updated = await this.fileManager.updateTimer(timerId, newData);
         if (!updated) {
             this.manager.stopTimer(timerId);
         }
@@ -578,7 +670,7 @@ class TimerPlugin extends obsidian.Plugin {
         if (file) {
             await this.fileManager.upgradeOldTimers(file);
             const view = this.app.workspace.getActiveViewOfType(obsidian.MarkdownView);
-            if (view && view.file === file) {
+            if (view?.file === file) {
                 this.restoreTimersInView(view);
             }
         }
@@ -597,28 +689,46 @@ class TimerPlugin extends obsidian.Plugin {
         for (let i = 0; i < editor.lineCount(); i++) {
             const lineText = editor.getLine(i);
             const parsed = TimerParser.parse(lineText, 'auto');
+            
             if (parsed?.class === 'timer-r') {
                 const { autoStopTimers } = this.settings;
-                if (autoStopTimers === 'never' || (autoStopTimers === 'quit' && this.manager.isStartedInThisSession(parsed.timerId))) {
-                    this.handleRestore(view, i, parsed);
-                } else {
-                    this.handleForcePause(view, i, parsed);
-                }
+                const shouldRestore = autoStopTimers === 'never' || 
+                    (autoStopTimers === 'quit' && this.manager.isStartedInThisSession(parsed.timerId));
+                
+                const action = shouldRestore ? 'restore' : 'forcepause';
+                this.handleTimerAction(action, view, i, parsed);
             }
         }
     }
 
     async activateView() {
-        this.app.workspace.detachLeavesOfType(ANALYTICS_VIEW_TYPE);
-
+        this.app.workspace.detachLeavesOfType(CONSTANTS.ANALYTICS_VIEW_TYPE);
+        
         await this.app.workspace.getRightLeaf(false).setViewState({
-            type: ANALYTICS_VIEW_TYPE,
+            type: CONSTANTS.ANALYTICS_VIEW_TYPE,
             active: true,
         });
 
         this.app.workspace.revealLeaf(
-            this.app.workspace.getLeavesOfType(ANALYTICS_VIEW_TYPE)[0]
+            this.app.workspace.getLeavesOfType(CONSTANTS.ANALYTICS_VIEW_TYPE)[0]
         );
+    }
+
+    async resetAnalytics() {
+        const confirmation = confirm("Are you sure you want to delete all analytics data?");
+        if (!confirmation) return;
+
+        const analyticsPath = this.getAnalyticsPath();
+        await this.app.vault.adapter.write(analyticsPath, JSON.stringify([], null, 2));
+        
+        const leaves = this.app.workspace.getLeavesOfType(CONSTANTS.ANALYTICS_VIEW_TYPE);
+        if (leaves.length > 0) {
+            leaves[0].view.onOpen();
+        }
+    }
+
+    getAnalyticsPath() {
+        return this.app.vault.configDir + '/plugins/tag-timer/analytics.json';
     }
 
     async loadSettings() {
@@ -632,11 +742,32 @@ class TimerPlugin extends obsidian.Plugin {
         }
     }
 
+    async updateSetting(key, value) {
+        this.settings[key] = value;
+        await this.saveSettings();
+        this.onSettingChanged(key, value);
+    }
+
+    onSettingChanged(key, value) {
+        const handlers = {
+            autoStopTimers: () => this.updateAutoStopBehavior?.(),
+            timerInsertLocation: () => { this.fileManager.settings = this.settings; },
+            dailyReset: () => value && this.handleDailyReset()
+        };
+        handlers[key]?.();
+    }
+
+    cleanupTimerState(timerId) {
+        if (this.settings.timersState?.[timerId]) {
+            delete this.settings.timersState[timerId];
+            this.saveSettings();
+        }
+    }
+
     async logAnalytics(timerData, lineText, filePath) {
         const { timerId, dur } = timerData;
         if (!timerId) return;
 
-        // Ensure timersState exists
         if (!this.settings.timersState) {
             this.settings.timersState = {};
         }
@@ -644,12 +775,9 @@ class TimerPlugin extends obsidian.Plugin {
         const lastLoggedDur = this.settings.timersState[timerId] || 0;
         const durationIncrement = dur - lastLoggedDur;
 
-        // Only log if there's a positive increment
-        if (durationIncrement <= 0) {
-            return;
-        }
+        if (durationIncrement <= 0) return;
 
-        const tags = lineText.match(/#\w+/g) || [];
+        const tags = lineText.match(CONSTANTS.REGEX.HASHTAGS) || [];
         const analyticsData = {
             timestamp: new Date().toISOString(),
             duration: durationIncrement,
@@ -657,48 +785,45 @@ class TimerPlugin extends obsidian.Plugin {
             tags: tags
         };
 
-        const analyticsPath = this.app.vault.configDir + '/plugins/text-block-timer/analytics.json';
         try {
-            let analytics = [];
-            try {
-                const rawData = await this.app.vault.adapter.read(analyticsPath);
-                if (rawData) {
-                    analytics = JSON.parse(rawData);
-                }
-            } catch (readError) {
-                // File might not exist, which is fine.
-            }
+            const analyticsPath = this.getAnalyticsPath();
+            let analytics = await this.loadAnalyticsData(analyticsPath);
             
             analytics.push(analyticsData);
             await this.app.vault.adapter.write(analyticsPath, JSON.stringify(analytics, null, 2));
 
-            // Update the state and save
             this.settings.timersState[timerId] = dur;
             await this.saveSettings();
-
         } catch (e) {
             console.error("Error writing analytics data:", e);
+        }
+    }
+
+    async loadAnalyticsData(analyticsPath) {
+        try {
+            const rawData = await this.app.vault.adapter.read(analyticsPath);
+            return rawData ? JSON.parse(rawData) : [];
+        } catch (readError) {
+            return [];
         }
     }
 
     async handleDailyReset() {
         if (!this.settings.dailyReset) return;
 
-        const today = new Date().toISOString().slice(0, 10);
+        const today = TimerUtils.getTodayString();
         if (this.settings.lastResetDate !== today) {
-            const analyticsPath = this.app.vault.configDir + '/plugins/text-block-timer/analytics.json';
+            const analyticsPath = this.getAnalyticsPath();
             await this.app.vault.adapter.write(analyticsPath, JSON.stringify([], null, 2));
             this.settings.lastResetDate = today;
             await this.saveSettings();
 
-            // Refresh the view if it's open
-            const leaves = this.app.workspace.getLeavesOfType(ANALYTICS_VIEW_TYPE);
+            const leaves = this.app.workspace.getLeavesOfType(CONSTANTS.ANALYTICS_VIEW_TYPE);
             if (leaves.length > 0) {
                 leaves[0].view.onOpen();
             }
         }
     }
-    
 }
 
 class TimerSettingTab extends obsidian.PluginSettingTab {
@@ -707,19 +832,16 @@ class TimerSettingTab extends obsidian.PluginSettingTab {
         this.plugin = plugin;
     }
 
-    processPath(filePath) {
-        // This logic seems intended to ensure directory paths end with a slash.
-        if (filePath.endsWith('/') || filePath.split('/').pop().includes('.')) {
-            return filePath;
-        }
-        return filePath + '/';
-    }
-
     display() {
         const { containerEl } = this;
         containerEl.empty();
         const lang = LANG.settings;
 
+        this.createHeader(containerEl, lang);
+        this.createBasicSettings(containerEl, lang);
+    }
+
+    createHeader(containerEl, lang) {
         containerEl.createEl('h1', { text: lang.name });
         containerEl.createEl('p', { text: lang.desc });
 
@@ -728,12 +850,14 @@ class TimerSettingTab extends obsidian.PluginSettingTab {
         tutorialP.appendText(lang.tutorial);
         tutorialP.createEl('a', {
             text: 'GitHub',
-            href: 'https://github.com/quantavil/text-block-timer',
+            href: 'https://github.com/quantavil/tag-timer',
             target: '_blank'
         });
         containerEl.createEl('p', { text: lang.askforvote });
         containerEl.createEl('p', { text: lang.issue });
+    }
 
+    createBasicSettings(containerEl, lang) {
         containerEl.createEl('h3', { text: lang.sections.basic.name });
 
         new obsidian.Setting(containerEl)
@@ -742,48 +866,43 @@ class TimerSettingTab extends obsidian.PluginSettingTab {
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.dailyReset)
                 .onChange(async (value) => {
-                    this.plugin.settings.dailyReset = value;
-                    await this.plugin.saveSettings();
+                    await this.plugin.updateSetting('dailyReset', value);
                 }));
 
         new obsidian.Setting(containerEl)
-            .setName(lang.autostop.name).setDesc(lang.autostop.desc)
+            .setName(lang.autostop.name)
+            .setDesc(lang.autostop.desc)
             .addDropdown(dd => dd
                 .addOption('never', lang.autostop.choice.never)
                 .addOption('quit', lang.autostop.choice.quit)
                 .addOption('close', lang.autostop.choice.close)
                 .setValue(this.plugin.settings.autoStopTimers)
                 .onChange(async (value) => {
-                    this.plugin.settings.autoStopTimers = value;
-                    await this.plugin.saveSettings();
+                    await this.plugin.updateSetting('autoStopTimers', value);
                 }));
 
         new obsidian.Setting(containerEl)
-            .setName(lang.insertlocation.name).setDesc(lang.insertlocation.desc)
+            .setName(lang.insertlocation.name)
+            .setDesc(lang.insertlocation.desc)
             .addDropdown(dd => dd
                 .addOption('head', lang.insertlocation.choice.head)
                 .addOption('tail', lang.insertlocation.choice.tail)
                 .setValue(this.plugin.settings.timerInsertLocation)
                 .onChange(async (value) => {
-                    this.plugin.settings.timerInsertLocation = value;
-                    await this.plugin.saveSettings();
+                    await this.plugin.updateSetting('timerInsertLocation', value);
                 }));
     }
 }
-
-module.exports = TimerPlugin;
-
-const ANALYTICS_VIEW_TYPE = "timer-analytics-view";
 
 class TimerAnalyticsView extends obsidian.ItemView {
     constructor(leaf) {
         super(leaf);
         this.chartjsLoaded = false;
-        this.analyticsPath = this.app.vault.configDir + '/plugins/text-block-timer/analytics.json';
+        this.analyticsPath = this.app.vault.configDir + '/plugins/tag-timer/analytics.json';
     }
 
     getViewType() {
-        return ANALYTICS_VIEW_TYPE;
+        return CONSTANTS.ANALYTICS_VIEW_TYPE;
     }
 
     getDisplayText() {
@@ -800,6 +919,14 @@ class TimerAnalyticsView extends obsidian.ItemView {
         container.addClass("analytics-container");
 
         if (!this.chartjsLoaded) {
+            await this.loadChartJS(container);
+        } else {
+            this.renderAnalytics();
+        }
+    }
+
+    async loadChartJS(container) {
+        return new Promise((resolve) => {
             const chartScript = document.createElement('script');
             chartScript.src = 'https://cdn.jsdelivr.net/npm/chart.js';
             chartScript.onload = () => {
@@ -809,161 +936,168 @@ class TimerAnalyticsView extends obsidian.ItemView {
                     this.chartjsLoaded = true;
                     Chart.register(ChartDataLabels);
                     this.renderAnalytics();
+                    resolve();
                 };
                 container.appendChild(datalabelsScript);
             };
             container.appendChild(chartScript);
-        } else {
-            this.renderAnalytics();
-        }
+        });
     }
 
     async renderAnalytics() {
         const container = this.containerEl.children[1];
-        container.empty(); // Clear previous content
+        container.empty();
         container.addClass("analytics-container");
 
-        let analytics = [];
-        try {
-            const rawData = await this.app.vault.adapter.read(this.analyticsPath);
-            analytics = JSON.parse(rawData);
-        } catch (e) {
-            container.createEl("p", { text: "No analytics data found." });
-            return;
-        }
-
+        const analytics = await this.loadAnalyticsData();
+        
         if (analytics.length === 0) {
             container.createEl("p", { text: "No analytics data found." });
             return;
         }
 
         const chartGrid = container.createDiv({ cls: "chart-grid" });
+        
+        this.createBarChartCard(chartGrid, analytics);
+        this.createDoughnutChartCard(chartGrid, analytics);
+        this.createResetButton(container);
+    }
 
-        // Tag Totals - Horizontal Bar Chart
+    async loadAnalyticsData() {
+        try {
+            const rawData = await this.app.vault.adapter.read(this.analyticsPath);
+            return JSON.parse(rawData);
+        } catch (e) {
+            return [];
+        }
+    }
+
+    createBarChartCard(chartGrid, analytics) {
         const barCard = chartGrid.createDiv({ cls: "analytics-card chart-card" });
         barCard.createEl("h3", { text: "Analytics" });
-        const barCanvasContainer = barCard.createDiv({cls: "canvas-container"});
+        const barCanvasContainer = barCard.createDiv({ cls: "canvas-container" });
         const barChartCanvas = barCanvasContainer.createEl("canvas");
         this.createBarChart(barChartCanvas, analytics);
+    }
 
-        // Daily Distribution - Doughnut Chart
+    createDoughnutChartCard(chartGrid, analytics) {
         const doughnutCard = chartGrid.createDiv({ cls: "analytics-card chart-card" });
         doughnutCard.createEl("h3", { text: "Today's Focus" });
-        const doughnutCanvasContainer = doughnutCard.createDiv({cls: "canvas-container"});
+        const doughnutCanvasContainer = doughnutCard.createDiv({ cls: "canvas-container" });
         const doughnutChartCanvas = doughnutCanvasContainer.createEl("canvas");
         this.createDoughnutChart(doughnutChartCanvas, analytics);
 
-        const today = new Date().toISOString().slice(0, 10);
+        const today = TimerUtils.getTodayString();
         const dailyTotal = analytics
             .filter(entry => entry.timestamp.slice(0, 10) === today)
             .reduce((total, entry) => total + entry.duration, 0);
 
         const dailyTotalEl = doughnutCard.createEl("p", { cls: "daily-total" });
-        dailyTotalEl.setText(`Today's Total: ${this.formatDuration(dailyTotal)}`);
+        dailyTotalEl.setText(`Today's Total: ${TimerUtils.formatDuration(dailyTotal)}`);
+    }
 
-
-        // Reset Button at the bottom
-        const resetButton = container.createEl("button", { text: "Reset All Analytics", cls: "reset-analytics-button" });
+    createResetButton(container) {
+        const resetButton = container.createEl("button", { 
+            text: "Reset All Analytics", 
+            cls: "reset-analytics-button" 
+        });
+        
         resetButton.addEventListener('click', (e) => {
             const menu = new obsidian.Menu();
             menu.addItem((item) =>
-                item
-                    .setTitle("Confirm Reset")
+                item.setTitle("Confirm Reset")
                     .setIcon("trash")
                     .onClick(async () => {
                         await this.app.vault.adapter.write(this.analyticsPath, JSON.stringify([], null, 2));
-                        this.onOpen(); // Refresh the view
+                        this.onOpen();
                     })
             );
             menu.showAtMouseEvent(e);
         });
     }
 
-    createBarChart(canvas, analytics) {
-        const tagTotals = {};
-        analytics.forEach(entry => {
-            (entry.tags || []).forEach(tag => {
-                if (!tagTotals[tag]) {
-                    tagTotals[tag] = 0;
-                }
-                tagTotals[tag] += entry.duration;
-            });
-        });
-
-        const sortedTags = Object.entries(tagTotals).sort(([, a], [, b]) => a - b);
-
-        const chart = new Chart(canvas.getContext('2d'), {
-            type: 'bar',
-            data: {
-                labels: sortedTags.map(([tag]) => this.formatTagLabel(tag)),
-                datasets: [{
-                    label: 'Total Time',
-                    data: sortedTags.map(([, duration]) => duration),
-                    backgroundColor: (context) => {
-                        const chart = context.chart;
-                        const {ctx, chartArea} = chart;
-
-                        if (!chartArea) {
-                            return null;
+    getBaseChartOptions() {
+        return {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: (context) => {
+                            const value = context.raw;
+                            return `${context.label}: ${TimerUtils.formatDuration(value)}`;
                         }
-                        const gradient = ctx.createLinearGradient(chartArea.left, 0, chartArea.right, 0);
-                        gradient.addColorStop(0, 'rgba(54, 162, 235, 0.8)');
-                        gradient.addColorStop(1, 'rgba(153, 102, 255, 0.8)');
-                        return gradient;
-                    },
-                    borderColor: 'rgba(255, 255, 255, 0.1)',
-                    borderWidth: 1,
-                    borderRadius: 6,
-                    hoverBackgroundColor: 'rgba(54, 162, 235, 1)'
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: {
-                        display: false,
-                    },
-                    y: {
-                        ticks: {
-                            color: 'white',
-                            font: {
-                                size: 14
-                            }
-                        },
-                        grid: {
-                            display: false
-                        }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        display: false
-                    },
-                    layout : {
-                        padding: {
-                            right: 50,
-                        }
-                    },
-                    tooltip: {
-                        enabled: false
-                    },
-                    datalabels: {
-                        anchor: 'end',
-                        align: 'start',
-                        color: 'white',
-                        font: {
-                            size: 14,
-                            weight: 'bold'
-                        },
-                        formatter: (value) => this.formatDuration(value),
-                        clamp: true
                     }
                 }
             }
-        });
+        };
+    }
 
+    createChart(canvas, type, data, specificOptions = {}) {
+        const baseOptions = this.getBaseChartOptions();
+        const mergedOptions = { ...baseOptions, ...specificOptions };
+        return new Chart(canvas.getContext('2d'), { type, data, options: mergedOptions });
+    }
+
+    createBarChart(canvas, analytics) {
+        const tagTotals = this.calculateTagTotals(analytics);
+        const sortedTags = Object.entries(tagTotals).sort(([, a], [, b]) => a - b);
+
+        const chartOptions = {
+            indexAxis: 'y',
+            scales: {
+                x: { display: false },
+                y: {
+                    ticks: { color: 'white', font: { size: 14 } },
+                    grid: { display: false }
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                layout: { padding: { right: 50 } },
+                tooltip: { enabled: false },
+                datalabels: {
+                    anchor: 'end',
+                    align: 'start',
+                    color: 'white',
+                    font: { size: 14, weight: 'bold' },
+                    formatter: (value) => TimerUtils.formatDuration(value),
+                    clamp: true
+                }
+            }
+        };
+
+        const chartData = {
+            labels: sortedTags.map(([tag]) => TimerUtils.formatTagLabel(tag)),
+            datasets: [{
+                label: 'Total Time',
+                data: sortedTags.map(([, duration]) => duration),
+                backgroundColor: this.createGradient(canvas),
+                borderColor: 'rgba(255, 255, 255, 0.1)',
+                borderWidth: 1,
+                borderRadius: 6,
+                hoverBackgroundColor: 'rgba(54, 162, 235, 1)'
+            }]
+        };
+
+        const chart = this.createChart(canvas, 'bar', chartData, chartOptions);
+        this.addChartContextMenu(canvas, chart, sortedTags);
+    }
+
+    createGradient(canvas) {
+        return (context) => {
+            const chart = context.chart;
+            const { ctx, chartArea } = chart;
+            if (!chartArea) return null;
+            
+            const gradient = ctx.createLinearGradient(chartArea.left, 0, chartArea.right, 0);
+            gradient.addColorStop(0, 'rgba(54, 162, 235, 0.8)');
+            gradient.addColorStop(1, 'rgba(153, 102, 255, 0.8)');
+            return gradient;
+        };
+    }
+
+    addChartContextMenu(canvas, chart, sortedTags) {
         canvas.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             const points = chart.getElementsAtEventForMode(e, 'nearest', { intersect: true }, true);
@@ -974,8 +1108,7 @@ class TimerAnalyticsView extends obsidian.ItemView {
 
                 const menu = new obsidian.Menu();
                 menu.addItem((item) =>
-                    item
-                        .setTitle(`Delete "${label}"`)
+                    item.setTitle(`Delete "${label}"`)
                         .setIcon("trash")
                         .onClick(() => {
                             this.deleteTagData(tagToDelete).then(() => {
@@ -988,126 +1121,106 @@ class TimerAnalyticsView extends obsidian.ItemView {
         });
     }
 
-    createDoughnutChart(canvas, analytics) {
-        const today = new Date().toISOString().slice(0, 10);
-        const dailyTagTotals = {};
-        analytics
-            .filter(entry => entry.timestamp.slice(0, 10) === today)
-            .forEach(entry => {
-                (entry.tags || []).forEach(tag => {
-                    if (!dailyTagTotals[tag]) {
-                        dailyTagTotals[tag] = 0;
-                    }
-                    dailyTagTotals[tag] += entry.duration;
-                });
+    calculateTagTotals(analytics) {
+        const tagTotals = {};
+        analytics.forEach(entry => {
+            (entry.tags || []).forEach(tag => {
+                tagTotals[tag] = (tagTotals[tag] || 0) + entry.duration;
             });
+        });
+        return tagTotals;
+    }
+
+    createDoughnutChart(canvas, analytics) {
+        const today = TimerUtils.getTodayString();
+        const dailyTagTotals = this.calculateDailyTagTotals(analytics, today);
 
         if (Object.keys(dailyTagTotals).length === 0) {
-            const p = canvas.parentElement.createEl('p', {text: 'No data for today.'});
+            const p = canvas.parentElement.createEl('p', { text: 'No data for today.' });
             p.style.textAlign = 'center';
             canvas.remove();
             return;
         }
 
-        new Chart(canvas.getContext('2d'), {
-            type: 'doughnut',
-            data: {
-                labels: Object.keys(dailyTagTotals).map(tag => this.formatTagLabel(tag)),
-                datasets: [{
-                    label: 'Time Spent Today',
-                    data: Object.values(dailyTagTotals),
-                    backgroundColor: [
-                        '#1E88E5', // Blue
-                        '#F4511E', // Deep Orange
-                        '#FBBC05', // Google Yellow
-                        '#34A853', // Google Green
-                        '#8E44AD', // Wisteria
-                        '#E91E63', // Pink
-                        '#00ACC1', // Cyan
-                        '#FDD835', // Yellow
-                        '#7CB342', // Light Green
-                        '#5E35B1'  // Deep Purple
-                    ],
-                    borderColor: '#333333',
-                    borderWidth: 2,
-                    hoverOffset: 8
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'top',
-                        labels: {
-                            color: 'white',
-                            font: {
-                                size: 14
-                            }
-                        }
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: (context) => {
-                                const label = context.label || '';
-                                const value = context.raw;
-                                const total = context.chart.getDatasetMeta(0).total;
-                                const percentage = ((value / total) * 100).toFixed(2);
-                                return `${label}: ${this.formatDuration(value)} (${percentage}%)`;
-                            }
-                        }
-                    },
-                    datalabels: {
-                        color: 'white',
-                        font: {
-                            size: 12,
-                            weight: 'bold'
-                        },
-                        align: 'center',
-                        anchor: 'center',
-                        formatter: (value, context) => {
+        const chartData = {
+            labels: Object.keys(dailyTagTotals).map(tag => TimerUtils.formatTagLabel(tag)),
+            datasets: [{
+                label: 'Time Spent Today',
+                data: Object.values(dailyTagTotals),
+                backgroundColor: this.getDoughnutColors(),
+                borderColor: '#333333',
+                borderWidth: 2,
+                hoverOffset: 8
+            }]
+        };
+
+        const chartOptions = {
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: { color: 'white', font: { size: 14 } }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: (context) => {
+                            const label = context.label || '';
+                            const value = context.raw;
                             const total = context.chart.getDatasetMeta(0).total;
-                            const percentage = ((value / total) * 100).toFixed(1);
-                            return `${percentage}%`;
+                            const percentage = ((value / total) * 100).toFixed(2);
+                            return `${label}: ${TimerUtils.formatDuration(value)} (${percentage}%)`;
                         }
+                    }
+                },
+                datalabels: {
+                    color: 'white',
+                    font: { size: 12, weight: 'bold' },
+                    align: 'center',
+                    anchor: 'center',
+                    formatter: (value, context) => {
+                        const total = context.chart.getDatasetMeta(0).total;
+                        const percentage = ((value / total) * 100).toFixed(1);
+                        return `${percentage}%`;
                     }
                 }
             }
-        });
+        };
+
+        this.createChart(canvas, 'doughnut', chartData, chartOptions);
     }
 
-
-    formatDuration(totalSeconds) {
-        if (totalSeconds === 0) return '0s';
-        const hours = Math.floor(totalSeconds / 3600);
-        const minutes = Math.floor((totalSeconds % 3600) / 60);
-        const seconds = Math.floor(totalSeconds % 60);
-        const parts = [];
-        if (hours > 0) parts.push(`${hours}h`);
-        if (minutes > 0) parts.push(`${minutes}m`);
-        if (seconds > 0) parts.push(`${seconds}s`);
-        return parts.join(' ');
+    calculateDailyTagTotals(analytics, today) {
+        const dailyTagTotals = {};
+        analytics
+            .filter(entry => entry.timestamp.slice(0, 10) === today)
+            .forEach(entry => {
+                (entry.tags || []).forEach(tag => {
+                    dailyTagTotals[tag] = (dailyTagTotals[tag] || 0) + entry.duration;
+                });
+            });
+        return dailyTagTotals;
     }
 
-    formatTagLabel(tag) {
-        return tag.startsWith('#') ? tag.substring(1) : tag;
+    getDoughnutColors() {
+        return [
+            '#1E88E5', '#F4511E', '#FBBC05', '#34A853', '#8E44AD',
+            '#E91E63', '#00ACC1', '#FDD835', '#7CB342', '#5E35B1'
+        ];
     }
 
     async onClose() {
-        // Nothing to clean up.
+        // Nothing to clean up
     }
 
     async deleteTagData(tagToDelete) {
-        const analyticsPath = this.app.vault.configDir + '/plugins/text-block-timer/analytics.json';
         try {
-            const rawData = await this.app.vault.adapter.read(analyticsPath);
+            const rawData = await this.app.vault.adapter.read(this.analyticsPath);
             let analytics = JSON.parse(rawData);
             const updatedAnalytics = analytics.filter(entry => !entry.tags.includes(tagToDelete));
-            await this.app.vault.adapter.write(analyticsPath, JSON.stringify(updatedAnalytics, null, 2));
+            await this.app.vault.adapter.write(this.analyticsPath, JSON.stringify(updatedAnalytics, null, 2));
         } catch (e) {
             console.error(`Error deleting tag data: ${e}`);
         }
     }
 }
 
-
+module.exports = TimerPlugin;
