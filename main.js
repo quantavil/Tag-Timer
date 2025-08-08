@@ -975,7 +975,21 @@ class TimerChartManager {
 
     createBarChartCard(chartGrid, analytics) {
         const barCard = chartGrid.createDiv({ cls: "analytics-card chart-card" });
-        barCard.createEl("h3", { text: "Analytics" });
+        const header = barCard.createDiv({ cls: "analytics-card-header" });
+        header.createEl("h3", { text: "Analytics" });
+
+        const toggleButton = header.createEl("button", { 
+            text: this.view.showWeekly ? "Show Daily" : "Show Weekly",
+            cls: "analytics-toggle-button"
+        });
+        if (this.view.showWeekly) {
+            toggleButton.addClass('active');
+        }
+        toggleButton.addEventListener('click', () => {
+            this.view.showWeekly = !this.view.showWeekly;
+            this.view.onOpen();
+        });
+
         const barCanvasContainer = barCard.createDiv({ cls: "canvas-container" });
         const barChartCanvas = barCanvasContainer.createEl("canvas");
         this.createBarChart(barChartCanvas, analytics);
@@ -1376,16 +1390,6 @@ class TimerAnalyticsView extends obsidian.ItemView {
         const container = this.containerEl.children[1];
         container.empty();
         container.addClass("analytics-container");
-
-        const toggleContainer = container.createDiv({ cls: "analytics-toggle" });
-        const toggleButton = toggleContainer.createEl("button", { 
-            text: this.showWeekly ? "Show Daily" : "Show Weekly",
-            cls: "analytics-toggle-button"
-        });
-        toggleButton.addEventListener('click', () => {
-            this.showWeekly = !this.showWeekly;
-            this.onOpen();
-        });
 
         const analyticsPath = this.showWeekly ? this.weeklyAnalyticsPath : this.analyticsPath;
         const analytics = await this.loadAnalyticsData(analyticsPath);
