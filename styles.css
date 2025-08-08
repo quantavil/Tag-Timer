@@ -2,7 +2,7 @@
 :root {
     --timer-green: #32CD32;
     --timer-orange: #FF8C00;
-    --danger-color: #B00020;
+    --danger-color: #be0325;
     --danger-hover: #8B0000;
     --transition-default: all 0.2s ease;
     --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
