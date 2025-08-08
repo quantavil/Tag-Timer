@@ -993,21 +993,90 @@ class TimerChartManager {
     }
 
     createDoughnutChartCard(chartGrid, analytics) {
-        const doughnutCard = chartGrid.createDiv({ cls: "analytics-card chart-card" });
-        doughnutCard.createEl("h3", { text: this.view.showWeekly ? "This Week's Focus" : "Today's Focus" });
-        const doughnutCanvasContainer = doughnutCard.createDiv({ cls: "canvas-container" });
-        const doughnutChartCanvas = doughnutCanvasContainer.createEl("canvas");
-        this.createDoughnutChart(doughnutChartCanvas, analytics);
+        if (this.view.showWeekly) {
+            this.createDailyBarChartCard(chartGrid, analytics);
+        } else {
+            const doughnutCard = chartGrid.createDiv({ cls: "analytics-card chart-card" });
+            doughnutCard.createEl("h3", { text: "Today's Focus" });
+            const doughnutCanvasContainer = doughnutCard.createDiv({ cls: "canvas-container" });
+            const doughnutChartCanvas = doughnutCanvasContainer.createEl("canvas");
+            this.createDoughnutChart(doughnutChartCanvas, analytics);
 
-        const targetDate = this.view.showWeekly ? this.getCurrentWeekString() : TimerUtils.getTodayString();
-        const periodTotal = analytics
-            .filter(entry => this.view.showWeekly ? 
-                this.isInCurrentWeek(entry.timestamp) : 
-                entry.timestamp.slice(0, 10) === targetDate)
-            .reduce((total, entry) => total + entry.duration, 0);
+            const targetDate = TimerUtils.getTodayString();
+            const periodTotal = analytics
+                .filter(entry => entry.timestamp.slice(0, 10) === targetDate)
+                .reduce((total, entry) => total + entry.duration, 0);
 
-        const periodTotalEl = doughnutCard.createEl("p", { cls: "daily-total" });
-        periodTotalEl.setText(`${this.view.showWeekly ? "This Week's" : "Today's"} Total: ${TimerUtils.formatDuration(periodTotal)}`);
+            const periodTotalEl = doughnutCard.createEl("p", { cls: "daily-total" });
+            periodTotalEl.setText(`Today's Total: ${TimerUtils.formatDuration(periodTotal)}`);
+        }
+    }
+
+    createDailyBarChartCard(chartGrid, analytics) {
+        const barCard = chartGrid.createDiv({ cls: "analytics-card chart-card" });
+        barCard.createEl("h3", { text: "Weekly Study" });
+        const barCanvasContainer = barCard.createDiv({ cls: "canvas-container" });
+        const barChartCanvas = barCanvasContainer.createEl("canvas");
+        this.createDailyBarChart(barChartCanvas, analytics);
+    }
+
+    createDailyBarChart(canvas, analytics) {
+        const dailyTotals = this.calculateDailyTotals(analytics);
+        const isDarkTheme = document.body.classList.contains('theme-dark');
+        const textColor = isDarkTheme ? 'white' : '#333333';
+
+        const chartOptions = {
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        color: textColor,
+                        callback: (value) => TimerUtils.formatDuration(value)
+                    },
+                    grid: {
+                        color: isDarkTheme ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+                    }
+                },
+                x: {
+                    ticks: { color: textColor },
+                    grid: { display: false }
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: (context) => `Total: ${TimerUtils.formatDuration(context.raw)}`
+                    }
+                }
+            }
+        };
+
+        const chartData = {
+            labels: Object.keys(dailyTotals),
+            datasets: [{
+                label: 'Daily Total',
+                data: Object.values(dailyTotals),
+                backgroundColor: this.createGradient(canvas, 'x'),
+                borderColor: isDarkTheme ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                borderWidth: 1,
+                borderRadius: 6
+            }]
+        };
+
+        this.createChart(canvas, 'bar', chartData, chartOptions);
+    }
+
+    calculateDailyTotals(analytics) {
+        const totals = { "Sun": 0, "Mon": 0, "Tue": 0, "Wed": 0, "Thu": 0, "Fri": 0, "Sat": 0 };
+        analytics.forEach(entry => {
+            if (this.isInCurrentWeek(entry.timestamp)) {
+                const day = new Date(entry.timestamp).getDay();
+                const dayName = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][day];
+                totals[dayName] += entry.duration;
+            }
+        });
+        return totals;
     }
 
     getCurrentWeekString() {
@@ -1122,7 +1191,7 @@ class TimerChartManager {
             datasets: [{
                 label: 'Total Time',
                 data: sortedTags.map(([, duration]) => duration),
-                backgroundColor: this.createGradient(canvas),
+                backgroundColor: this.createGradient(canvas, 'y'),
                 borderColor: isDarkTheme ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
                 borderWidth: 1,
                 borderRadius: 6,
@@ -1134,14 +1203,19 @@ class TimerChartManager {
         this.addChartContextMenu(canvas, chart, sortedTags);
     }
 
-    createGradient(canvas) {
+    createGradient(canvas, axis = 'x') {
         return (context) => {
             const chart = context.chart;
             const { ctx, chartArea } = chart;
             if (!chartArea) return null;
 
             const isDarkTheme = document.body.classList.contains('theme-dark');
-            const gradient = ctx.createLinearGradient(chartArea.left, 0, chartArea.right, 0);
+            let gradient;
+            if (axis === 'y') {
+                gradient = ctx.createLinearGradient(chartArea.left, 0, chartArea.right, 0);
+            } else {
+                gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+            }
 
             if (isDarkTheme) {
                 gradient.addColorStop(0, 'rgba(54, 162, 235, 0.8)');
