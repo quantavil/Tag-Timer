@@ -24,19 +24,27 @@
     ]
   },
   {
-    "timestamp": "2025-08-08T06:02:46.588Z",
-    "duration": 18,
-    "file": "manual-edit",
-    "tags": [
-      "#English"
-    ]
-  },
-  {
     "timestamp": "2025-08-08T06:02:54.255Z",
     "duration": 3,
     "file": "TODO.md",
     "tags": [
       "#Vocab"
+    ]
+  },
+  {
+    "timestamp": "2025-08-08T07:05:11.004Z",
+    "duration": 1,
+    "file": "TODO.md",
+    "tags": [
+      "#Extra"
+    ]
+  },
+  {
+    "timestamp": "2025-08-08T07:05:23.688Z",
+    "duration": 30,
+    "file": "manual-edit",
+    "tags": [
+      "#English"
     ]
   }
 ]

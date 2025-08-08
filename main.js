@@ -1065,6 +1065,12 @@ class TimerChartManager {
         const tagTotals = this.calculateTagTotals(analytics);
         const sortedTags = Object.entries(tagTotals).sort(([, a], [, b]) => a - b);
     
+        const isLabelOutside = (context) => {
+            const value = context.dataset.data[context.dataIndex];
+            const maxValue = Math.max(...context.dataset.data);
+            return (value / maxValue) * 100 < 20;
+        };
+
         const chartOptions = {
             indexAxis: 'y',
             scales: {
@@ -1076,32 +1082,14 @@ class TimerChartManager {
             },
             plugins: {
                 legend: { display: false },
-                layout: { padding: { right: 50 } },
                 tooltip: { enabled: false },
                 datalabels: {
                     anchor: 'end',
-                    align: (context) => {
-                        const value = context.dataset.data[context.dataIndex];
-                        const maxValue = Math.max(...context.dataset.data);
-                        const percentage = (value / maxValue) * 100;
-                        if (percentage < 10) {
-                            return 'end';
-                        }
-                        return 'start';
-                    },
+                    align: (context) => isLabelOutside(context) ? 'end' : 'start',
                     color: 'white',
                     font: { size: 14, weight: 'bold' },
-                    formatter: (value) => TimerUtils.formatDuration(value),
-                    clamp: true,
-                    offset: (context) => {
-                        const value = context.dataset.data[context.dataIndex];
-                        const maxValue = Math.max(...context.dataset.data);
-                        const percentage = (value / maxValue) * 100;
-                        if (percentage < 10) {
-                            return -10;
-                        }
-                        return 8;
-                    }
+                    formatter: (value) => TimerUtils.formatDuration(value) + '  ',
+                    offset: (context) => isLabelOutside(context) ? 4 : -4,
                 }
             }
         };
