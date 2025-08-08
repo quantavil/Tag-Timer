@@ -1242,14 +1242,24 @@ class TimerAnalyticsView extends obsidian.ItemView {
             if (points.length) {
                 const firstPoint = points[0];
                 const label = chart.data.labels[firstPoint.index];
-                const tagToDelete = `#${label}`;
+                const tag = `#${label}`;
+                const currentValue = sortedTags[firstPoint.index][1];
 
                 const menu = new obsidian.Menu();
+                
+                menu.addItem((item) =>
+                    item.setTitle(`Edit "${label}"`)
+                        .setIcon("pencil")
+                        .onClick(() => {
+                            this.showEditModal(tag, currentValue, this.showWeekly);
+                        })
+                );
+
                 menu.addItem((item) =>
                     item.setTitle(`Delete "${label}"`)
                         .setIcon("trash")
                         .onClick(() => {
-                            this.deleteTagData(tagToDelete, this.showWeekly).then(() => {
+                            this.deleteTagData(tag, this.showWeekly).then(() => {
                                 this.onOpen();
                             });
                         })
@@ -1257,6 +1267,67 @@ class TimerAnalyticsView extends obsidian.ItemView {
                 menu.showAtMouseEvent(e);
             }
         });
+    }
+
+    showEditModal(tag, currentValue, isWeekly) {
+        const modal = new obsidian.Modal(this.app);
+        modal.contentEl.createEl("h2", { text: `Edit time for ${tag}` });
+    
+        let newTimeInSeconds = currentValue;
+    
+        const input = new obsidian.TextComponent(modal.contentEl)
+            .setValue(String(currentValue))
+            .onChange((value) => {
+                newTimeInSeconds = parseInt(value, 10);
+            });
+        
+        input.inputEl.type = 'number';
+        input.inputEl.style.width = '100%';
+    
+    
+        new obsidian.Setting(modal.contentEl)
+            .addButton((btn) =>
+                btn
+                .setButtonText("Save")
+                .setCta()
+                .onClick(() => {
+                    if (!isNaN(newTimeInSeconds) && newTimeInSeconds >= 0) {
+                        this.updateTagTime(tag, newTimeInSeconds, isWeekly).then(() => {
+                            modal.close();
+                            this.onOpen();
+                        });
+                    } else {
+                        new obsidian.Notice("Please enter a valid number for seconds.");
+                    }
+                })
+            );
+    
+        modal.open();
+    }
+
+    async updateTagTime(tagToUpdate, newTotalDuration, isWeekly) {
+        const path = isWeekly ? this.weeklyAnalyticsPath : this.analyticsPath;
+        try {
+            const rawData = await this.app.vault.adapter.read(path);
+            let analytics = JSON.parse(rawData);
+    
+            // Remove all entries for the tag
+            const otherEntries = analytics.filter(entry => !entry.tags.includes(tagToUpdate));
+    
+            // Add a new single entry for the tag with the new total duration
+            const newEntry = {
+                timestamp: new Date().toISOString(),
+                duration: newTotalDuration,
+                file: "manual-edit",
+                tags: [tagToUpdate]
+            };
+    
+            const updatedAnalytics = [...otherEntries, newEntry];
+    
+            await this.app.vault.adapter.write(path, JSON.stringify(updatedAnalytics, null, 2));
+        } catch (e) {
+            console.error(`Error updating tag data: ${e}`);
+        }
     }
 
     calculateTagTotals(analytics) {
