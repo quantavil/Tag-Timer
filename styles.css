@@ -382,25 +382,26 @@
 }
 
 .analytics-toggle-button {
-    background-color: var(--background-secondary);
-    color: var(--text-muted);
-    border: 1px solid var(--background-modifier-border);
+    background: linear-gradient(135deg, rgba(54, 162, 235, 0.5), rgba(153, 102, 255, 0.5));
+    color: var(--text-normal);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     padding: 0.5rem 1rem;
     border-radius: 9999px;
     cursor: pointer;
     font-weight: 500;
     transition: all 0.2s ease-in-out;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
 
 .analytics-toggle-button:hover {
-    background-color: var(--background-modifier-hover);
-    color: var(--text-normal);
-    border-color: var(--background-modifier-border-hover);
+    background: linear-gradient(135deg, rgba(54, 162, 235, 0.7), rgba(153, 102, 255, 0.7));
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    transform: translateY(-1px);
 }
 
 .analytics-toggle-button.active {
-    background-color: var(--interactive-accent);
-    color: var(--text-on-accent);
-    border-color: var(--interactive-accent);
+    background: linear-gradient(135deg, rgba(54, 162, 235, 1), rgba(153, 102, 255, 1));
+    color: white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
 }
 

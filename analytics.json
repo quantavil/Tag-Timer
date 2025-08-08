@@ -1,21 +1,5 @@
 [
   {
-    "timestamp": "2025-08-08T04:30:03.751Z",
-    "duration": 10,
-    "file": "TODO.md",
-    "tags": [
-      "#English"
-    ]
-  },
-  {
-    "timestamp": "2025-08-08T04:30:33.361Z",
-    "duration": 8,
-    "file": "TODO.md",
-    "tags": [
-      "#English"
-    ]
-  },
-  {
     "timestamp": "2025-08-08T04:30:53.683Z",
     "duration": 3,
     "file": "TODO.md",
@@ -37,6 +21,22 @@
     "file": "TODO.md",
     "tags": [
       "#Calculation"
+    ]
+  },
+  {
+    "timestamp": "2025-08-08T06:02:46.588Z",
+    "duration": 18,
+    "file": "manual-edit",
+    "tags": [
+      "#English"
+    ]
+  },
+  {
+    "timestamp": "2025-08-08T06:02:54.255Z",
+    "duration": 3,
+    "file": "TODO.md",
+    "tags": [
+      "#Vocab"
     ]
   }
 ]

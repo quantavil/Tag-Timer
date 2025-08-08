@@ -1315,8 +1315,19 @@ class TimerChartManager {
 
     getDoughnutColors() {
         return [
-            '#1E88E5', '#F4511E', '#FBBC05', '#34A853', '#8E44AD',
-            '#E91E63', '#00ACC1', '#FDD835', '#7CB342', '#5E35B1'
+            '#9050deff',
+            '#3678e3ff',
+            '#1daec4ff',
+            '#26c2aeff',
+            '#28c088ff',
+            '#cd742cff',
+            '#d8324eff',
+            '#dc549aff',
+            '#5c69dbff',
+            '#70839dff',
+            '#065084ff',
+            '#A55B4Bff',
+            '#4F1C51ff'
         ];
     }
 

@@ -25,12 +25,14 @@
     "uTcmaan": 23,
     "uTfLODF": 8,
     "uTfLY2D": 6,
-    "uTaZaA4": 7
+    "uTaZaA4": 7,
+    "uTg98f8": 3
   },
   "dailyReset": true,
   "lastResetDate": "2025-08-08",
   "weeklyReset": true,
   "lastWeeklyResetDate": "2025-08-04",
+  "doughnutChartPalette": "palette5",
   "enableCheckboxToTimer": true,
   "runningCheckboxState": "/",
   "pausedCheckboxState": "-xx",
