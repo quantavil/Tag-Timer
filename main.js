@@ -982,9 +982,6 @@ class TimerChartManager {
             text: this.view.showWeekly ? "Show Daily" : "Show Weekly",
             cls: "analytics-toggle-button"
         });
-        if (this.view.showWeekly) {
-            toggleButton.addClass('active');
-        }
         toggleButton.addEventListener('click', () => {
             this.view.showWeekly = !this.view.showWeekly;
             this.view.onOpen();
@@ -1039,6 +1036,9 @@ class TimerChartManager {
     }
 
     getBaseChartOptions() {
+        const isDarkTheme = document.body.classList.contains('theme-dark');
+        const textColor = isDarkTheme ? 'white' : '#333333';
+        
         return {
             responsive: true,
             maintainAspectRatio: false,
@@ -1049,6 +1049,16 @@ class TimerChartManager {
                             const value = context.raw;
                             return `${context.label}: ${TimerUtils.formatDuration(value)}`;
                         }
+                    },
+                    backgroundColor: isDarkTheme ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.9)',
+                    titleColor: textColor,
+                    bodyColor: textColor,
+                    borderColor: isDarkTheme ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)',
+                    borderWidth: 1
+                },
+                legend: {
+                    labels: {
+                        color: textColor
                     }
                 }
             }
@@ -1064,7 +1074,9 @@ class TimerChartManager {
     createBarChart(canvas, analytics) {
         const tagTotals = this.calculateTagTotals(analytics);
         const sortedTags = Object.entries(tagTotals).sort(([, a], [, b]) => a - b);
-    
+        const isDarkTheme = document.body.classList.contains('theme-dark');
+        const textColor = isDarkTheme ? 'white' : '#333333';
+
         const isLabelOutside = (context) => {
             const value = context.dataset.data[context.dataIndex];
             const maxValue = Math.max(...context.dataset.data);
@@ -1074,10 +1086,21 @@ class TimerChartManager {
         const chartOptions = {
             indexAxis: 'y',
             scales: {
-                x: { display: false },
+                x: { 
+                    display: false,
+                    grid: {
+                        display: false
+                    }
+                },
                 y: {
-                    ticks: { color: 'white', font: { size: 14 } },
-                    grid: { display: false }
+                    ticks: { 
+                        color: textColor, 
+                        font: { size: 14 } 
+                    },
+                    grid: { 
+                        display: false,
+                        color: isDarkTheme ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+                    }
                 }
             },
             plugins: {
@@ -1086,27 +1109,27 @@ class TimerChartManager {
                 datalabels: {
                     anchor: 'end',
                     align: (context) => isLabelOutside(context) ? 'end' : 'start',
-                    color: 'white',
+                    color: isDarkTheme ? 'white' : '#333333',
                     font: { size: 14, weight: 'bold' },
                     formatter: (value) => TimerUtils.formatDuration(value) + '  ',
                     offset: (context) => isLabelOutside(context) ? 4 : -4,
                 }
             }
         };
-    
+
         const chartData = {
             labels: sortedTags.map(([tag]) => TimerUtils.formatTagLabel(tag)),
             datasets: [{
                 label: 'Total Time',
                 data: sortedTags.map(([, duration]) => duration),
                 backgroundColor: this.createGradient(canvas),
-                borderColor: 'rgba(255, 255, 255, 0.1)',
+                borderColor: isDarkTheme ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
                 borderWidth: 1,
                 borderRadius: 6,
-                hoverBackgroundColor: 'rgba(54, 162, 235, 1)'
+                hoverBackgroundColor: isDarkTheme ? 'rgba(54, 162, 235, 1)' : 'rgba(54, 162, 235, 0.9)'
             }]
         };
-    
+
         const chart = this.createChart(canvas, 'bar', chartData, chartOptions);
         this.addChartContextMenu(canvas, chart, sortedTags);
     }
@@ -1116,10 +1139,18 @@ class TimerChartManager {
             const chart = context.chart;
             const { ctx, chartArea } = chart;
             if (!chartArea) return null;
-            
+
+            const isDarkTheme = document.body.classList.contains('theme-dark');
             const gradient = ctx.createLinearGradient(chartArea.left, 0, chartArea.right, 0);
-            gradient.addColorStop(0, 'rgba(54, 162, 235, 0.8)');
-            gradient.addColorStop(1, 'rgba(153, 102, 255, 0.8)');
+
+            if (isDarkTheme) {
+                gradient.addColorStop(0, 'rgba(54, 162, 235, 0.8)');
+                gradient.addColorStop(1, 'rgba(153, 102, 255, 0.8)');
+            } else {
+                gradient.addColorStop(0, 'rgba(54, 162, 235, 0.7)');
+                gradient.addColorStop(1, 'rgba(153, 102, 255, 0.7)');
+            }
+
             return gradient;
         };
     }
@@ -1229,6 +1260,8 @@ class TimerChartManager {
     createDoughnutChart(canvas, analytics) {
         const today = TimerUtils.getTodayString();
         const dailyTagTotals = this.calculateTagTotalsForPeriod(analytics, this.view.showWeekly ? this.getCurrentWeekString() : today);
+        const isDarkTheme = document.body.classList.contains('theme-dark');
+        const textColor = isDarkTheme ? 'white' : '#333333';
 
         if (Object.keys(dailyTagTotals).length === 0) {
             const p = canvas.parentElement.createEl('p', { text: `No data for ${this.view.showWeekly ? 'this week' : 'today'}.` });
@@ -1243,7 +1276,7 @@ class TimerChartManager {
                 label: `Time Spent ${this.view.showWeekly ? 'This Week' : 'Today'}`,
                 data: Object.values(dailyTagTotals),
                 backgroundColor: this.getDoughnutColors(),
-                borderColor: '#333333',
+                borderColor: isDarkTheme ? '#333333' : '#ffffff',
                 borderWidth: 2,
                 hoverOffset: 8
             }]
@@ -1253,7 +1286,10 @@ class TimerChartManager {
             plugins: {
                 legend: {
                     position: 'top',
-                    labels: { color: 'white', font: { size: 14 } }
+                    labels: { 
+                        color: textColor, 
+                        font: { size: 14 } 
+                    }
                 },
                 tooltip: {
                     callbacks: {
@@ -1264,10 +1300,15 @@ class TimerChartManager {
                             const percentage = ((value / total) * 100).toFixed(2);
                             return `${label}: ${TimerUtils.formatDuration(value)} (${percentage}%)`;
                         }
-                    }
+                    },
+                    backgroundColor: isDarkTheme ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.9)',
+                    titleColor: textColor,
+                    bodyColor: textColor,
+                    borderColor: isDarkTheme ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)',
+                    borderWidth: 1
                 },
                 datalabels: {
-                    color: 'white',
+                    color: isDarkTheme ? 'white' : '#333333',
                     font: { size: 12, weight: 'bold' },
                     align: 'center',
                     anchor: 'center',
