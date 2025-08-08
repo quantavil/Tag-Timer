@@ -967,97 +967,10 @@ class TimerSettingTab extends obsidian.PluginSettingTab {
     }
 }
 
-class TimerAnalyticsView extends obsidian.ItemView {
-    constructor(leaf) {
-        super(leaf);
-        this.chartjsLoaded = false;
-        this.analyticsPath = this.app.vault.configDir + '/plugins/tag-timer/analytics.json';
-        this.weeklyAnalyticsPath = this.app.vault.configDir + '/plugins/tag-timer/weekly-analytics.json';  
-        this.showWeekly = false;  
-    }
-
-    getViewType() {
-        return CONSTANTS.ANALYTICS_VIEW_TYPE;
-    }
-
-    getDisplayText() {
-        return "Timer Analytics";
-    }
-
-    getIcon() {
-        return "pie-chart";
-    }
-
-    async onOpen() {
-        const container = this.containerEl.children[1];
-        container.empty();
-        container.addClass("analytics-container");
-
-        if (!this.chartjsLoaded) {
-            await this.loadChartJS(container);
-        } else {
-            this.renderAnalytics();
-        }
-    }
-
-    async loadChartJS(container) {
-        return new Promise((resolve) => {
-            const chartScript = document.createElement('script');
-            chartScript.src = 'https://cdn.jsdelivr.net/npm/chart.js';
-            chartScript.onload = () => {
-                const datalabelsScript = document.createElement('script');
-                datalabelsScript.src = 'https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0/dist/chartjs-plugin-datalabels.min.js';
-                datalabelsScript.onload = () => {
-                    this.chartjsLoaded = true;
-                    Chart.register(ChartDataLabels);
-                    this.renderAnalytics();
-                    resolve();
-                };
-                container.appendChild(datalabelsScript);
-            };
-            container.appendChild(chartScript);
-        });
-    }
-
-    async renderAnalytics() {
-        const container = this.containerEl.children[1];
-        container.empty();
-        container.addClass("analytics-container");
-
-        // Add toggle button
-        const toggleContainer = container.createDiv({ cls: "analytics-toggle" });
-        const toggleButton = toggleContainer.createEl("button", { 
-            text: this.showWeekly ? "Show Daily" : "Show Weekly",
-            cls: "analytics-toggle-button"
-        });
-        toggleButton.addEventListener('click', () => {
-            this.showWeekly = !this.showWeekly;
-            this.onOpen();
-        });
-
-        const analyticsPath = this.showWeekly ? this.weeklyAnalyticsPath : this.analyticsPath;
-        const analytics = await this.loadAnalyticsData(analyticsPath);
-
-        if (analytics.length === 0) {
-            container.createEl("p", { text: `No ${this.showWeekly ? 'weekly' : 'daily'} analytics data found.` });
-            return;
-        }
-
-        const chartGrid = container.createDiv({ cls: "chart-grid" });
-
-        this.createBarChartCard(chartGrid, analytics);
-        this.createDoughnutChartCard(chartGrid, analytics);
-        this.createResetButton(container);
-    }
-
-    async loadAnalyticsData(path = null) {
-        const targetPath = path || (this.showWeekly ? this.weeklyAnalyticsPath : this.analyticsPath);
-        try {
-            const rawData = await this.app.vault.adapter.read(targetPath);
-            return JSON.parse(rawData);
-        } catch (e) {
-            return [];
-        }
+class TimerChartManager {
+    constructor(app, view) {
+        this.app = app;
+        this.view = view;
     }
 
     createBarChartCard(chartGrid, analytics) {
@@ -1070,20 +983,20 @@ class TimerAnalyticsView extends obsidian.ItemView {
 
     createDoughnutChartCard(chartGrid, analytics) {
         const doughnutCard = chartGrid.createDiv({ cls: "analytics-card chart-card" });
-        doughnutCard.createEl("h3", { text: this.showWeekly ? "This Week's Focus" : "Today's Focus" });
+        doughnutCard.createEl("h3", { text: this.view.showWeekly ? "This Week's Focus" : "Today's Focus" });
         const doughnutCanvasContainer = doughnutCard.createDiv({ cls: "canvas-container" });
         const doughnutChartCanvas = doughnutCanvasContainer.createEl("canvas");
         this.createDoughnutChart(doughnutChartCanvas, analytics);
 
-        const targetDate = this.showWeekly ? this.getCurrentWeekString() : TimerUtils.getTodayString();
+        const targetDate = this.view.showWeekly ? this.getCurrentWeekString() : TimerUtils.getTodayString();
         const periodTotal = analytics
-            .filter(entry => this.showWeekly ? 
+            .filter(entry => this.view.showWeekly ? 
                 this.isInCurrentWeek(entry.timestamp) : 
                 entry.timestamp.slice(0, 10) === targetDate)
             .reduce((total, entry) => total + entry.duration, 0);
 
         const periodTotalEl = doughnutCard.createEl("p", { cls: "daily-total" });
-        periodTotalEl.setText(`${this.showWeekly ? "This Week's" : "Today's"} Total: ${TimerUtils.formatDuration(periodTotal)}`);
+        periodTotalEl.setText(`${this.view.showWeekly ? "This Week's" : "Today's"} Total: ${TimerUtils.formatDuration(periodTotal)}`);
     }
 
     getCurrentWeekString() {
@@ -1109,27 +1022,6 @@ class TimerAnalyticsView extends obsidian.ItemView {
         weekEnd.setHours(23, 59, 59, 999);
 
         return date >= weekStart && date <= weekEnd;
-    }
-
-    createResetButton(container) {
-        const resetButton = container.createEl("button", { 
-            text: `Reset ${this.showWeekly ? 'Weekly' : 'Daily'} Analytics`, 
-            cls: "reset-analytics-button" 
-        });
-        
-        resetButton.addEventListener('click', (e) => {
-            const menu = new obsidian.Menu();
-            menu.addItem((item) =>
-                item.setTitle(`Confirm Reset ${this.showWeekly ? 'Weekly' : 'Daily'}`)
-                    .setIcon("trash")
-                    .onClick(async () => {
-                        const path = this.showWeekly ? this.weeklyAnalyticsPath : this.analyticsPath;
-                        await this.app.vault.adapter.write(path, JSON.stringify([], null, 2));
-                        this.onOpen();
-                    })
-            );
-            menu.showAtMouseEvent(e);
-        });
     }
 
     getBaseChartOptions() {
@@ -1175,31 +1067,26 @@ class TimerAnalyticsView extends obsidian.ItemView {
                 datalabels: {
                     anchor: 'end',
                     align: (context) => {
-                        // Dynamically adjust label alignment based on bar size
                         const value = context.dataset.data[context.dataIndex];
                         const maxValue = Math.max(...context.dataset.data);
                         const percentage = (value / maxValue) * 100;
-                        
-                        // For small bars, place label inside the bar to prevent overlap
                         if (percentage < 10) {
-                            return 'end'; // Inside the bar (left-aligned within bar)
+                            return 'end';
                         }
-                        return 'start'; // Outside the bar (right of the bar)
+                        return 'start';
                     },
                     color: 'white',
                     font: { size: 14, weight: 'bold' },
                     formatter: (value) => TimerUtils.formatDuration(value),
                     clamp: true,
                     offset: (context) => {
-                        // Add offset to prevent overlap
                         const value = context.dataset.data[context.dataIndex];
                         const maxValue = Math.max(...context.dataset.data);
                         const percentage = (value / maxValue) * 100;
-                        
                         if (percentage < 10) {
-                            return -10; // Move inside the bar when small
+                            return -10;
                         }
-                        return 8; // Standard offset for normal bars
+                        return 8;
                     }
                 }
             }
@@ -1251,7 +1138,7 @@ class TimerAnalyticsView extends obsidian.ItemView {
                     item.setTitle(`Edit "${label}"`)
                         .setIcon("pencil")
                         .onClick(() => {
-                            this.showEditModal(tag, currentValue, this.showWeekly);
+                            this.showEditModal(tag, currentValue, this.view.showWeekly);
                         })
                 );
 
@@ -1259,8 +1146,8 @@ class TimerAnalyticsView extends obsidian.ItemView {
                     item.setTitle(`Delete "${label}"`)
                         .setIcon("trash")
                         .onClick(() => {
-                            this.deleteTagData(tag, this.showWeekly).then(() => {
-                                this.onOpen();
+                            this.deleteTagData(tag, this.view.showWeekly).then(() => {
+                                this.view.onOpen();
                             });
                         })
                 );
@@ -1284,7 +1171,6 @@ class TimerAnalyticsView extends obsidian.ItemView {
         input.inputEl.type = 'number';
         input.inputEl.style.width = '100%';
     
-    
         new obsidian.Setting(modal.contentEl)
             .addButton((btn) =>
                 btn
@@ -1294,7 +1180,7 @@ class TimerAnalyticsView extends obsidian.ItemView {
                     if (!isNaN(newTimeInSeconds) && newTimeInSeconds >= 0) {
                         this.updateTagTime(tag, newTimeInSeconds, isWeekly).then(() => {
                             modal.close();
-                            this.onOpen();
+                            this.view.onOpen();
                         });
                     } else {
                         new obsidian.Notice("Please enter a valid number for seconds.");
@@ -1306,15 +1192,13 @@ class TimerAnalyticsView extends obsidian.ItemView {
     }
 
     async updateTagTime(tagToUpdate, newTotalDuration, isWeekly) {
-        const path = isWeekly ? this.weeklyAnalyticsPath : this.analyticsPath;
+        const path = isWeekly ? this.view.weeklyAnalyticsPath : this.view.analyticsPath;
         try {
             const rawData = await this.app.vault.adapter.read(path);
             let analytics = JSON.parse(rawData);
     
-            // Remove all entries for the tag
             const otherEntries = analytics.filter(entry => !entry.tags.includes(tagToUpdate));
     
-            // Add a new single entry for the tag with the new total duration
             const newEntry = {
                 timestamp: new Date().toISOString(),
                 duration: newTotalDuration,
@@ -1342,10 +1226,10 @@ class TimerAnalyticsView extends obsidian.ItemView {
 
     createDoughnutChart(canvas, analytics) {
         const today = TimerUtils.getTodayString();
-        const dailyTagTotals = this.calculateTagTotalsForPeriod(analytics, this.showWeekly ? this.getCurrentWeekString() : today);
+        const dailyTagTotals = this.calculateTagTotalsForPeriod(analytics, this.view.showWeekly ? this.getCurrentWeekString() : today);
 
         if (Object.keys(dailyTagTotals).length === 0) {
-            const p = canvas.parentElement.createEl('p', { text: `No data for ${this.showWeekly ? 'this week' : 'today'}.` });
+            const p = canvas.parentElement.createEl('p', { text: `No data for ${this.view.showWeekly ? 'this week' : 'today'}.` });
             p.style.textAlign = 'center';
             canvas.remove();
             return;
@@ -1354,7 +1238,7 @@ class TimerAnalyticsView extends obsidian.ItemView {
         const chartData = {
             labels: Object.keys(dailyTagTotals).map(tag => TimerUtils.formatTagLabel(tag)),
             datasets: [{
-                label: `Time Spent ${this.showWeekly ? 'This Week' : 'Today'}`,
+                label: `Time Spent ${this.view.showWeekly ? 'This Week' : 'Today'}`,
                 data: Object.values(dailyTagTotals),
                 backgroundColor: this.getDoughnutColors(),
                 borderColor: '#333333',
@@ -1399,7 +1283,7 @@ class TimerAnalyticsView extends obsidian.ItemView {
 
     calculateTagTotalsForPeriod(analytics, targetDate) {
         const totals = {};
-        const isWeekly = this.showWeekly;
+        const isWeekly = this.view.showWeekly;
 
         analytics.forEach(entry => {
             const entryDate = new Date(entry.timestamp);
@@ -1422,12 +1306,8 @@ class TimerAnalyticsView extends obsidian.ItemView {
         ];
     }
 
-    async onClose() {
-        // Nothing to clean up
-    }
-
     async deleteTagData(tagToDelete, showWeekly) {
-        const path = showWeekly ? this.weeklyAnalyticsPath : this.analyticsPath;
+        const path = showWeekly ? this.view.weeklyAnalyticsPath : this.view.analyticsPath;
         try {
             const rawData = await this.app.vault.adapter.read(path);
             let analytics = JSON.parse(rawData);
@@ -1436,6 +1316,125 @@ class TimerAnalyticsView extends obsidian.ItemView {
         } catch (e) {
             console.error(`Error deleting tag data: ${e}`);
         }
+    }
+}
+
+class TimerAnalyticsView extends obsidian.ItemView {
+    constructor(leaf) {
+        super(leaf);
+        this.chartjsLoaded = false;
+        this.analyticsPath = this.app.vault.configDir + '/plugins/tag-timer/analytics.json';
+        this.weeklyAnalyticsPath = this.app.vault.configDir + '/plugins/tag-timer/weekly-analytics.json';  
+        this.showWeekly = false;
+        this.chartManager = new TimerChartManager(this.app, this);
+    }
+
+    getViewType() {
+        return CONSTANTS.ANALYTICS_VIEW_TYPE;
+    }
+
+    getDisplayText() {
+        return "Timer Analytics";
+    }
+
+    getIcon() {
+        return "pie-chart";
+    }
+
+    async onOpen() {
+        const container = this.containerEl.children[1];
+        container.empty();
+        container.addClass("analytics-container");
+
+        if (!this.chartjsLoaded) {
+            await this.loadChartJS(container);
+        } else {
+            this.renderAnalytics();
+        }
+    }
+
+    async loadChartJS(container) {
+        return new Promise((resolve) => {
+            const chartScript = document.createElement('script');
+            chartScript.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+            chartScript.onload = () => {
+                const datalabelsScript = document.createElement('script');
+                datalabelsScript.src = 'https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0/dist/chartjs-plugin-datalabels.min.js';
+                datalabelsScript.onload = () => {
+                    this.chartjsLoaded = true;
+                    Chart.register(ChartDataLabels);
+                    this.renderAnalytics();
+                    resolve();
+                };
+                container.appendChild(datalabelsScript);
+            };
+            container.appendChild(chartScript);
+        });
+    }
+
+    async renderAnalytics() {
+        const container = this.containerEl.children[1];
+        container.empty();
+        container.addClass("analytics-container");
+
+        const toggleContainer = container.createDiv({ cls: "analytics-toggle" });
+        const toggleButton = toggleContainer.createEl("button", { 
+            text: this.showWeekly ? "Show Daily" : "Show Weekly",
+            cls: "analytics-toggle-button"
+        });
+        toggleButton.addEventListener('click', () => {
+            this.showWeekly = !this.showWeekly;
+            this.onOpen();
+        });
+
+        const analyticsPath = this.showWeekly ? this.weeklyAnalyticsPath : this.analyticsPath;
+        const analytics = await this.loadAnalyticsData(analyticsPath);
+
+        if (analytics.length === 0) {
+            container.createEl("p", { text: `No ${this.showWeekly ? 'weekly' : 'daily'} analytics data found.` });
+            return;
+        }
+
+        const chartGrid = container.createDiv({ cls: "chart-grid" });
+
+        this.chartManager.createBarChartCard(chartGrid, analytics);
+        this.chartManager.createDoughnutChartCard(chartGrid, analytics);
+        this.createResetButton(container);
+    }
+
+    async loadAnalyticsData(path = null) {
+        const targetPath = path || (this.showWeekly ? this.weeklyAnalyticsPath : this.analyticsPath);
+        try {
+            const rawData = await this.app.vault.adapter.read(targetPath);
+            return JSON.parse(rawData);
+        } catch (e) {
+            return [];
+        }
+    }
+
+    createResetButton(container) {
+        const resetButton = container.createEl("button", { 
+            text: `Reset ${this.showWeekly ? 'Weekly' : 'Daily'} Analytics`, 
+            cls: "reset-analytics-button" 
+        });
+        
+        resetButton.addEventListener('click', (e) => {
+            const menu = new obsidian.Menu();
+            menu.addItem((item) =>
+                item.setTitle(`Confirm Reset ${this.showWeekly ? 'Weekly' : 'Daily'}`)
+                    .setIcon("trash")
+                    .onClick(async () => {
+                        const path = this.showWeekly ? this.weeklyAnalyticsPath : this.analyticsPath;
+                        await this.app.vault.adapter.write(path, JSON.stringify([], null, 2));
+                        this.onOpen();
+                    })
+            );
+            menu.showAtMouseEvent(e);
+        });
+    }
+
+    async onClose() {
+        // Nothing to clean up
     }
 }
 
