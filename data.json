@@ -1,0 +1,16 @@
+{
+  "autoStopTimers": "quit",
+  "timerInsertLocation": "tail",
+  "timersState": {
+  },
+  "dailyReset": true,
+  "lastResetDate": "2025-08-08",
+  "weeklyReset": true,
+  "lastWeeklyResetDate": "2025-08-04",
+  "doughnutChartPalette": "palette5",
+  "enableCheckboxToTimer": true,
+  "runningCheckboxState": "/",
+  "pausedCheckboxState": "-xx",
+  "checkboxToTimerPathRestriction": "disable",
+  "pathRestrictionPaths": []
+}
