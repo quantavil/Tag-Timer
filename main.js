@@ -1001,14 +1001,6 @@ class TimerChartManager {
             const doughnutCanvasContainer = doughnutCard.createDiv({ cls: "canvas-container" });
             const doughnutChartCanvas = doughnutCanvasContainer.createEl("canvas");
             this.createDoughnutChart(doughnutChartCanvas, analytics);
-
-            const targetDate = TimerUtils.getTodayString();
-            const periodTotal = analytics
-                .filter(entry => entry.timestamp.slice(0, 10) === targetDate)
-                .reduce((total, entry) => total + entry.duration, 0);
-
-            const periodTotalEl = doughnutCard.createEl("p", { cls: "daily-total" });
-            periodTotalEl.setText(`Today's Total: ${TimerUtils.formatDuration(periodTotal)}`);
         }
     }
 
@@ -1134,10 +1126,10 @@ class TimerChartManager {
         };
     }
 
-    createChart(canvas, type, data, specificOptions = {}) {
+    createChart(canvas, type, data, specificOptions = {}, plugins = []) {
         const baseOptions = this.getBaseChartOptions();
         const mergedOptions = { ...baseOptions, ...specificOptions };
-        return new Chart(canvas.getContext('2d'), { type, data, options: mergedOptions });
+        return new Chart(canvas.getContext('2d'), { type, data, options: mergedOptions, plugins });
     }
 
     createBarChart(canvas, analytics) {
@@ -1344,6 +1336,8 @@ class TimerChartManager {
             return;
         }
 
+        const totalDuration = Object.values(dailyTagTotals).reduce((sum, duration) => sum + duration, 0);
+
         const chartData = {
             labels: Object.keys(dailyTagTotals).map(tag => TimerUtils.formatTagLabel(tag)),
             datasets: [{
@@ -1354,6 +1348,23 @@ class TimerChartManager {
                 borderWidth: 2,
                 hoverOffset: 8
             }]
+        };
+
+        const centerTextPlugin = {
+            id: 'centerText',
+            afterDraw: (chart) => {
+                const { ctx, chartArea } = chart;
+                if (chartArea.width === 0 || chartArea.height === 0) return;
+                ctx.save();
+                const centerX = (chartArea.left + chartArea.right) / 2;
+                const centerY = (chartArea.top + chartArea.bottom) / 2;
+                ctx.font = 'bold 20px sans-serif';
+                ctx.fillStyle = textColor;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(TimerUtils.formatDuration(totalDuration), centerX, centerY);
+                ctx.restore();
+            }
         };
 
         const chartOptions = {
@@ -1395,7 +1406,7 @@ class TimerChartManager {
             }
         };
 
-        this.createChart(canvas, 'doughnut', chartData, chartOptions);
+        this.createChart(canvas, 'doughnut', chartData, chartOptions, [centerTextPlugin]);
     }
 
     calculateTagTotalsForPeriod(analytics, targetDate) {
