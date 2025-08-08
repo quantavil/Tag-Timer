@@ -1,44 +1,56 @@
+/* === CSS Variables === */
+:root {
+    --timer-green: #32CD32;
+    --timer-orange: #FF8C00;
+    --danger-color: #B00020;
+    --danger-hover: #8B0000;
+    --transition-default: all 0.2s ease;
+    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
+    --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.4);
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+    --font-mono: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
 /* === Timer Core Styles === */
 .timer-r, .timer-p, .timer-btn {
-    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-family: var(--font-mono);
     font-weight: bold;
     padding: 2px 6px;
-    border-radius: 4px;
-    background: var(--background-secondary);
-    border: 1px solid var(--background-modifier-border);
-    transition: all 0.2s ease;
+    border-radius: var(--radius-sm);
+    transition: var(--transition-default);
     display: inline-block;
     user-select: none;
     cursor: pointer;
 }
 
 .timer-r {
-    color: #32CD32;
+    color: var(--timer-green);
     background: rgba(50, 205, 50, 0.1);
-    border-color: rgba(50, 205, 50, 0.3);
+    border: 1px solid rgba(50, 205, 50, 0.3);
     animation: timer-pulse 2s infinite;
 }
 
 .timer-p {
-    color: #FF8C00;
+    color: var(--timer-orange);
     background: rgba(255, 140, 0, 0.1);
-    border-color: rgba(255, 140, 0, 0.3);
+    border: 1px solid rgba(255, 140, 0, 0.3);
 }
 
 .timer-btn {
-    color: #32CD32;
+    color: var(--timer-green);
     background: rgba(50, 205, 50, 0.1);
-    border-color: rgba(50, 205, 50, 0.3);
+    border: 1px solid rgba(50, 205, 50, 0.3);
 }
 
-/* Timer hover effects */
 .timer-r:hover, .timer-p:hover, .timer-btn:hover {
     transform: translateY(-1px);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     filter: brightness(1.1);
 }
 
-/* Running timer animation */
 @keyframes timer-pulse {
     0%, 100% { 
         box-shadow: 0 0 0 0 rgba(50, 205, 50, 0.4);
@@ -52,162 +64,26 @@
 
 /* === Analytics Container === */
 .analytics-container {
-    --primary-bg: var(--background-primary);
-    --secondary-bg: var(--background-secondary);
-    --accent-color: var(--text-accent);
-    --border-color: var(--background-modifier-border);
-    --text-primary: var(--text-normal);
-    --text-muted: var(--text-muted);
-    --danger-color: #B00020;
-    --danger-hover: #8B0000;
-    
     padding: 0 1rem 1rem 1rem;
     height: 100%;
     display: flex;
     flex-direction: column;
-    gap: 0;
-    background: var(--secondary-bg);
-    color: var(--text-primary);
+    background: var(--background-secondary);
+    color: var(--text-normal);
 }
 
 /* === Analytics Cards === */
 .analytics-card {
-    background: var(--secondary-bg);
-    border: none;
-    border-radius: 0;
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-lg);
     padding: 1rem;
-    box-shadow: none;
-    transition: none;
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition-default);
 }
 
 .analytics-card:hover {
-    box-shadow: none;
-    transform: none;
-}
-
-.analytics-card h3 {
-    margin: 0;
-    font-size: 1.2em;
-    font-weight: 600;
-    color: var(--accent-color);
-    padding-bottom: 0.5rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.analytics-card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
-    padding-bottom: 0.5rem;
-}
-
-
-.analytics-card:nth-child(2) h3::before {
-    content: "🎯";
-}
-
-/* === Chart Grid === */
-.chart-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); /* Reduced min width */
-    gap: 0;
-    flex: 1;
-    align-items: start;
-    width: 100%;
-}
-
-@media (max-width: 600px) {
-    .chart-grid {
-        grid-template-columns: 1fr; /* Single column on very small screens */
-        gap: 0;
-    }
-    
-    .chart-card {
-        min-height: 220px; /* Further reduced height */
-    }
-    
-    .canvas-container {
-        min-height: 180px;
-    }
-}
-
-/* === Chart Cards === */
-.chart-card {
-    display: flex;
-    flex-direction: column;
-    min-height: 250px;
-    position: relative;
-    overflow: hidden;
-    width: 100%;
-}
-
-.canvas-container {
-    position: relative;
-    flex: 1;
-    min-height: 200px; /* Reduced minimum height */
-    padding: 0.5rem 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-}
-.canvas-container canvas {
-    max-width: 100%;
-    max-height: 100%;
-    width: 100%;
-    height: auto;
-    border-radius: 4px;
-}
-
-/* === Daily Total Display === */
-.daily-total {
-    text-align: center;
-    font-weight: 600;
-    font-size: 1.1em;
-    margin-top: 1rem;
-    padding: 0.75rem;
-    background: rgba(var(--accent-color), 0.1);
-    border-radius: 6px;
-    border: 1px solid var(--border-color);
-    color: var(--accent-color);
-    position: relative;
-}
-
-.daily-total::before {
-    content: "⏱️";
-    margin-right: 0.5rem;
-}
-
-/* === Reset Button === */
-.reset-analytics-button {
-    background: linear-gradient(135deg, var(--danger-color), var(--danger-hover));
-    color: white;
-    border: none;
-    padding: 0.75rem 1.5rem;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: 500;
-    font-size: 0.95em;
-    transition: all 0.2s ease;
-    align-self: center;
-    margin-top: 0;
-    box-shadow: 0 2px 4px rgba(176, 0, 32, 0.3);
-
-/* === Analytics Cards === */
-.analytics-card {
-    background: var(--secondary-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 1rem;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    transition: all 0.2s ease;
-}
-
-.analytics-card:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: var(--shadow-md);
     transform: translateY(-1px);
 }
 
@@ -215,7 +91,7 @@
     margin: 0;
     font-size: 1.2em;
     font-weight: 600;
-    color: var(--accent-color);
+    color: var(--text-accent);
     padding-bottom: 0.5rem;
     display: flex;
     align-items: center;
@@ -230,7 +106,6 @@
     padding-bottom: 0.5rem;
 }
 
-
 .analytics-card:nth-child(2) h3::before {
     content: "🎯";
 }
@@ -238,26 +113,11 @@
 /* === Chart Grid === */
 .chart-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); /* Reduced min width */
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 1rem;
     flex: 1;
     align-items: start;
     width: 100%;
-}
-
-@media (max-width: 600px) {
-    .chart-grid {
-        grid-template-columns: 1fr; /* Single column on very small screens */
-        gap: 0.75rem;
-    }
-    
-    .chart-card {
-        min-height: 220px; /* Further reduced height */
-    }
-    
-    .canvas-container {
-        min-height: 180px;
-    }
 }
 
 /* === Chart Cards === */
@@ -273,19 +133,20 @@
 .canvas-container {
     position: relative;
     flex: 1;
-    min-height: 200px; /* Reduced minimum height */
+    min-height: 200px;
     padding: 0.5rem 0;
     display: flex;
     align-items: center;
     justify-content: center;
     width: 100%;
 }
+
 .canvas-container canvas {
     max-width: 100%;
     max-height: 100%;
     width: 100%;
     height: auto;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
 }
 
 /* === Daily Total Display === */
@@ -295,10 +156,10 @@
     font-size: 1.1em;
     margin-top: 1rem;
     padding: 0.75rem;
-    background: rgba(var(--accent-color), 0.1);
-    border-radius: 6px;
-    border: 1px solid var(--border-color);
-    color: var(--accent-color);
+    background: rgba(var(--text-accent-rgb, 0, 0, 0), 0.1);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--background-modifier-border);
+    color: var(--text-accent);
     position: relative;
 }
 
@@ -313,11 +174,11 @@
     color: white;
     border: none;
     padding: 0.75rem 1.5rem;
-    border-radius: 6px;
+    border-radius: var(--radius-md);
     cursor: pointer;
     font-weight: 500;
     font-size: 0.95em;
-    transition: all 0.2s ease;
+    transition: var(--transition-default);
     align-self: center;
     margin-top: 1rem;
     box-shadow: 0 2px 4px rgba(176, 0, 32, 0.3);
@@ -347,9 +208,9 @@
     color: var(--text-muted);
     font-style: italic;
     padding: 2rem;
-    background: var(--secondary-bg);
-    border-radius: 8px;
-    border: 2px dashed var(--border-color);
+    background: var(--background-secondary);
+    border-radius: var(--radius-lg);
+    border: 2px dashed var(--background-modifier-border);
     margin: 1rem 0;
 }
 
@@ -359,6 +220,37 @@
     font-size: 2em;
     margin-bottom: 0.5rem;
     opacity: 0.7;
+}
+
+/* === Analytics Toggle === */
+.analytics-toggle {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1rem;
+}
+
+.analytics-toggle-button {
+    background: linear-gradient(135deg, rgba(54, 162, 235, 0.5), rgba(153, 102, 255, 0.5));
+    color: var(--text-normal);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 0.5rem 1rem;
+    border-radius: 9999px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: var(--transition-default);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.analytics-toggle-button:hover {
+    background: linear-gradient(135deg, rgba(54, 162, 235, 0.7), rgba(153, 102, 255, 0.7));
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    transform: translateY(-1px);
+}
+
+.analytics-toggle-button.active {
+    background: linear-gradient(135deg, rgba(54, 162, 235, 1), rgba(153, 102, 255, 1));
+    color: white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
 }
 
 /* === Responsive Design === */
@@ -372,10 +264,24 @@
     }
 }
 
+@media (max-width: 600px) {
+    .chart-grid {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+    
+    .chart-card {
+        min-height: 220px;
+    }
+    
+    .canvas-container {
+        min-height: 180px;
+    }
+}
+
 @media (max-width: 480px) {
     .analytics-container {
         padding: 0.5rem;
-        gap: 0.75rem;
     }
     
     .analytics-card {
@@ -400,19 +306,14 @@
     }
 }
 
-/* === Dark Mode Enhancements === */
-.theme-dark .analytics-container {
-    --primary-bg: var(--background-primary);
-    --secondary-bg: var(--background-secondary);
-}
-
+/* === Theme Enhancements === */
 .theme-dark .analytics-card {
-    background: var(--background-secondary-alt, var(--secondary-bg));
+    background: var(--background-secondary-alt, var(--background-secondary));
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .theme-dark .analytics-card:hover {
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    box-shadow: var(--shadow-lg);
 }
 
 .theme-dark .daily-total {
@@ -420,7 +321,6 @@
     border-color: rgba(255, 255, 255, 0.1);
 }
 
-/* === Light Mode Enhancements === */
 .theme-light .analytics-card {
     background: #fafafa;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
@@ -444,9 +344,9 @@
 }
 
 .analytics-container *:focus-visible {
-    outline: 2px solid var(--accent-color);
+    outline: 2px solid var(--text-accent);
     outline-offset: 2px;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
 }
 
 /* === Print Styles === */
@@ -477,7 +377,7 @@
 /* === Utility Classes === */
 .text-center { text-align: center; }
 .text-muted { color: var(--text-muted); }
-.font-mono { font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; }
+.font-mono { font-family: var(--font-mono); }
 .no-select { user-select: none; }
 .pointer { cursor: pointer; }
 
@@ -497,37 +397,4 @@
 
 .analytics-container::-webkit-scrollbar-thumb:hover {
     background: var(--text-normal);
-}
-
-/* === Analytics Toggle === */
-.analytics-toggle {
-    display: flex;
-    justify-content: center;
-    margin-bottom: 1rem;
-}
-
-.analytics-toggle-button {
-    background: linear-gradient(135deg, rgba(54, 162, 235, 0.5), rgba(153, 102, 255, 0.5));
-    color: var(--text-normal);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    padding: 0.5rem 1rem;
-    border-radius: 9999px;
-    cursor: pointer;
-    font-weight: 500;
-    transition: all 0.2s ease-in-out;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-}
-
-.analytics-toggle-button:hover {
-    background: linear-gradient(135deg, rgba(54, 162, 235, 0.7), rgba(153, 102, 255, 0.7));
-    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-    transform: translateY(-1px);
-}
-
-.analytics-toggle-button.active {
-    background: linear-gradient(135deg, rgba(54, 162, 235, 1), rgba(153, 102, 255, 1));
-    color: white;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-}
-
 }

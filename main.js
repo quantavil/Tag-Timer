@@ -1305,16 +1305,16 @@ class TimerChartManager {
         return [
             '#9050deff',
             '#3678e3ff',
+            '#A55B4Bff',
             '#1daec4ff',
+            '#d8324eff',
             '#26c2aeff',
             '#28c088ff',
             '#cd742cff',
-            '#d8324eff',
             '#dc549aff',
             '#5c69dbff',
             '#70839dff',
             '#065084ff',
-            '#A55B4Bff',
             '#4F1C51ff'
         ];
     }
