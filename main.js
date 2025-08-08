@@ -1006,7 +1006,7 @@ class TimerChartManager {
 
     createDailyBarChartCard(chartGrid, analytics) {
         const barCard = chartGrid.createDiv({ cls: "analytics-card chart-card" });
-        barCard.createEl("h3", { text: "Weekly Study" });
+        barCard.createEl("h3", { text: "Weekly Focus" });
         const barCanvasContainer = barCard.createDiv({ cls: "canvas-container" });
         const barChartCanvas = barCanvasContainer.createEl("canvas");
         this.createDailyBarChart(barChartCanvas, analytics);
