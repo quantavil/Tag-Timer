@@ -112,12 +112,12 @@ class TimerUtils {
     // Date helpers and MMM-DD format
     static startOfDay(d) {
         const x = new Date(d);
-        x.setHours(0,0,0,0);
+        x.setHours(0, 0, 0, 0);
         return x;
     }
     static endOfDay(d) {
         const x = new Date(d);
-        x.setHours(23,59,59,999);
+        x.setHours(23, 59, 59, 999);
         return x;
     }
     static startOfWeekMonday(d) {
@@ -125,20 +125,20 @@ class TimerUtils {
         const day = x.getDay(); // 0=Sun,...,6=Sat
         const diff = x.getDate() - day + (day === 0 ? -6 : 1);
         x.setDate(diff);
-        x.setHours(0,0,0,0);
+        x.setHours(0, 0, 0, 0);
         return x;
     }
     static endOfWeekMonday(d) {
         const s = TimerUtils.startOfWeekMonday(d);
         const e = new Date(s);
         e.setDate(s.getDate() + 6);
-        e.setHours(23,59,59,999);
+        e.setHours(23, 59, 59, 999);
         return e;
     }
     static formatMMMDD(input) {
         const d = (typeof input === 'string') ? new Date(input) : input;
         const month = d.toLocaleString('en-US', { month: 'short' }); // Jan
-        const day = String(d.getDate()).padStart(2,'0'); // 01
+        const day = String(d.getDate()).padStart(2, '0'); // 01
         return `${month}-${day}`;
     }
 }
@@ -181,7 +181,7 @@ class TimerManager {
 
     startTimer(timerId, initialData, tickCallback) {
         if (this.hasTimer(timerId)) return;
-        
+
         const intervalId = setInterval(() => tickCallback(timerId), CONSTANTS.UPDATE_INTERVAL);
         this.timers.set(timerId, { intervalId, data: initialData });
         this.startedIds.add(timerId);
@@ -231,20 +231,20 @@ class TimerFileManager {
     }
 
     async getLineText(view, file, lineNum) {
-        return view.getMode() === 'source' 
+        return view.getMode() === 'source'
             ? view.editor.getLine(lineNum)
             : (await this.app.vault.read(file)).split('\n')[lineNum] || '';
     }
 
     async writeTimer(timerId, timerData, view, file, lineNum, parsedResult = null) {
         const newSpan = TimerRenderer.render(timerData);
-        
+
         if (view.getMode() === 'preview') {
             await this.writeTimerPreview(file, lineNum, newSpan, parsedResult);
         } else {
             this.writeTimerSource(view.editor, lineNum, newSpan, parsedResult, timerId);
         }
-        
+
         this.locations.set(timerId, { view, file, lineNum });
         return timerId;
     }
@@ -301,18 +301,18 @@ class TimerFileManager {
         const { view, file, lineNum } = timerLocation;
         const lineText = await this.getLineText(view, file, lineNum);
         const parsed = TimerParser.parse(lineText, 'auto', timerId);
-        
+
         if (parsed) {
             await this.writeTimer(timerId, timerData, view, file, lineNum, parsed);
             return true;
         }
-        
+
         const found = await this.findTimerGlobally(timerId);
         if (found) {
             await this.writeTimer(timerId, timerData, found.view, found.file, found.lineNum, found.parsed);
             return true;
         }
-        
+
         console.warn(`Timer ${timerId} not found, stopping timer.`);
         return false;
     }
@@ -322,10 +322,10 @@ class TimerFileManager {
         if (!location) return null;
 
         const { view, file } = location;
-        const searchMethod = view.getMode() === 'source' ? 
-            this.searchInEditor.bind(this) : 
+        const searchMethod = view.getMode() === 'source' ?
+            this.searchInEditor.bind(this) :
             this.searchInFile.bind(this);
-        
+
         return await searchMethod(view, file, timerId);
     }
 
@@ -354,7 +354,7 @@ class TimerFileManager {
 
     calculateInsertPosition(editor, lineNum, insertLocation) {
         const lineText = editor.getLine(lineNum) || '';
-        
+
         if (insertLocation === 'head') {
             return this.findHeadPosition(lineText);
         } else if (insertLocation === 'tail') {
@@ -409,7 +409,7 @@ class TimerRenderer {
     static render(timerData) {
         const formatted = TimerUtils.formatTimeDisplay(timerData.dur);
         const timerIcon = this.getTimerIcon(timerData);
-        
+
         return `<span class="${timerData.class}" id="${timerData.timerId}" data-dur="${timerData.dur}" data-ts="${timerData.ts}">【${timerIcon}${formatted} 】</span>`;
     }
 
@@ -440,7 +440,7 @@ class TimerParser {
     static parseNewFormat(lineText, targetTimerId = null) {
         const regex = new RegExp(CONSTANTS.REGEX.NEW_FORMAT.source, 'g');
         let match;
-        
+
         while ((match = regex.exec(lineText)) !== null) {
             const timerId = match[2];
             if (!targetTimerId || targetTimerId === timerId) {
@@ -466,7 +466,7 @@ class TimerParser {
 
         const oldId = attrs.timerId;
         const newId = oldId ? TimerUtils.compressId(parseInt(oldId)) : TimerUtils.compressId();
-        
+
         return {
             class: attrs.Status === 'Running' ? 'timer-r' : 'timer-p',
             timerId: newId,
@@ -506,7 +506,7 @@ class TimerPlugin extends obsidian.Plugin {
             timerInsertLocation: 'head',
             timersState: {}
         };
-        
+
         await this.loadSettings();
         this.fileManager = new TimerFileManager(this.app, this.settings);
         await this.pruneAnalyticsOlderThanOneMonth();
@@ -524,7 +524,7 @@ class TimerPlugin extends obsidian.Plugin {
                 const lineNum = editor.getCursor().line;
                 const lineText = editor.getLine(lineNum);
                 const parsed = TimerParser.parse(lineText, 'auto');
-                
+
                 if (parsed) {
                     const action = parsed.class === 'timer-r' ? 'pause' : 'continue';
                     this.handleTimerAction(action, view, lineNum, parsed);
@@ -592,8 +592,8 @@ class TimerPlugin extends obsidian.Plugin {
                 this.manager.stopTimer(parsedData.timerId);
                 this.fileManager.locations.delete(parsedData.timerId);
                 if (view.getMode() === 'source') {
-                    view.editor.replaceRange('', 
-                        { line: lineNum, ch: parsedData.beforeIndex }, 
+                    view.editor.replaceRange('',
+                        { line: lineNum, ch: parsedData.beforeIndex },
                         { line: lineNum, ch: parsedData.afterIndex });
                 }
                 this.logAnalytics(parsedData, view.editor.getLine(lineNum), view.file.path);
@@ -634,19 +634,19 @@ class TimerPlugin extends obsidian.Plugin {
         const parsed = TimerParser.parse(lineText, 'auto');
 
         const menuItems = parsed ? this.getRunningMenuItems(parsed) : this.getNewTimerMenuItems();
-        
+
         menuItems.forEach(item => {
-            menu.addItem(menuItem => 
+            menu.addItem(menuItem =>
                 menuItem.setTitle(item.title)
-                         .setIcon(item.icon)
-                         .onClick(() => item.action(view, lineNum, parsed))
+                    .setIcon(item.icon)
+                    .onClick(() => item.action(view, lineNum, parsed))
             );
         });
     }
 
     getRunningMenuItems(parsed) {
         const items = [];
-        
+
         if (parsed.class === 'timer-r') {
             items.push({
                 title: LANG.action_paused,
@@ -660,13 +660,13 @@ class TimerPlugin extends obsidian.Plugin {
                 action: (view, lineNum, parsed) => this.handleContinue(view, lineNum, parsed)
             });
         }
-        
+
         items.push({
             title: LANG.command_name.delete,
             icon: 'trash',
             action: (view, lineNum, parsed) => this.handleDelete(view, lineNum, parsed)
         });
-        
+
         return items;
     }
 
@@ -714,12 +714,12 @@ class TimerPlugin extends obsidian.Plugin {
         for (let i = 0; i < editor.lineCount(); i++) {
             const lineText = editor.getLine(i);
             const parsed = TimerParser.parse(lineText, 'auto');
-            
+
             if (parsed?.class === 'timer-r') {
                 const { autoStopTimers } = this.settings;
-                const shouldRestore = autoStopTimers === 'never' || 
+                const shouldRestore = autoStopTimers === 'never' ||
                     (autoStopTimers === 'quit' && this.manager.isStartedInThisSession(parsed.timerId));
-                
+
                 const action = shouldRestore ? 'restore' : 'forcepause';
                 this.handleTimerAction(action, view, i, parsed);
             }
@@ -919,12 +919,12 @@ class TimerChartManager {
 
         // Centered title with side arrows
         const titleGroup = header.createDiv({ cls: "analytics-title-group" });
-        const leftArrow = titleGroup.createEl("button", { cls: "analytics-arrow", text: "◀" });
-        titleGroup.createEl("h3", { text: "Analytics", cls: "analytics-title" });
-        const rightArrow = titleGroup.createEl("button", { cls: "analytics-arrow", text: "▶" });
+        const leftArrow = titleGroup.createEl("button", { cls: "analytics-arrow", text: "<" });
+        const titleElement = titleGroup.createEl("h3", { text: "Analytics", cls: "analytics-title" });
+        const rightArrow = titleGroup.createEl("button", { cls: "analytics-arrow", text: ">" });
 
         const controls = header.createDiv({ cls: "analytics-controls" });
-        const toggleButton = controls.createEl("button", { 
+        const toggleButton = controls.createEl("button", {
             text: this.view.showWeekly ? "Show Daily" : "Show Weekly",
             cls: "analytics-toggle-button"
         });
@@ -1053,7 +1053,7 @@ class TimerChartManager {
     getBaseChartOptions() {
         const isDarkTheme = document.body.classList.contains('theme-dark');
         const textColor = isDarkTheme ? 'white' : '#333333';
-        
+
         return {
             responsive: true,
             maintainAspectRatio: false,
@@ -1102,18 +1102,18 @@ class TimerChartManager {
         const chartOptions = {
             indexAxis: 'y',
             scales: {
-                x: { 
+                x: {
                     display: false,
                     grid: {
                         display: false
                     }
                 },
                 y: {
-                    ticks: { 
-                        color: textColor, 
-                        font: { size: 14 } 
+                    ticks: {
+                        color: textColor,
+                        font: { size: 14 }
                     },
-                    grid: { 
+                    grid: {
                         display: false,
                         color: isDarkTheme ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
                     }
@@ -1187,7 +1187,7 @@ class TimerChartManager {
                 const currentValue = sortedTags[firstPoint.index][1];
 
                 const menu = new obsidian.Menu();
-                
+
                 menu.addItem((item) =>
                     item.setTitle(`Edit "${label}"`)
                         .setIcon("pencil")
@@ -1213,35 +1213,35 @@ class TimerChartManager {
     showEditModal(tag, currentValue) {
         const modal = new obsidian.Modal(this.app);
         modal.contentEl.createEl("h2", { text: `Edit time for ${tag}` });
-    
+
         let newTimeInSeconds = currentValue;
-    
+
         const input = new obsidian.TextComponent(modal.contentEl)
             .setValue(String(currentValue))
             .onChange((value) => {
                 newTimeInSeconds = parseInt(value, 10);
             });
-        
+
         input.inputEl.type = 'number';
         input.inputEl.style.width = '100%';
-    
+
         new obsidian.Setting(modal.contentEl)
             .addButton((btn) =>
                 btn
-                .setButtonText("Save")
-                .setCta()
-                .onClick(() => {
-                    if (!isNaN(newTimeInSeconds) && newTimeInSeconds >= 0) {
-                        this.updateTagTime(tag, newTimeInSeconds).then(() => {
-                            modal.close();
-                            this.view.onOpen();
-                        });
-                    } else {
-                        new obsidian.Notice("Please enter a valid number for seconds.");
-                    }
-                })
+                    .setButtonText("Save")
+                    .setCta()
+                    .onClick(() => {
+                        if (!isNaN(newTimeInSeconds) && newTimeInSeconds >= 0) {
+                            this.updateTagTime(tag, newTimeInSeconds).then(() => {
+                                modal.close();
+                                this.view.onOpen();
+                            });
+                        } else {
+                            new obsidian.Notice("Please enter a valid number for seconds.");
+                        }
+                    })
             );
-    
+
         modal.open();
     }
 
@@ -1326,9 +1326,9 @@ class TimerChartManager {
             plugins: {
                 legend: {
                     position: 'top',
-                    labels: { 
-                        color: textColor, 
-                        font: { size: 14 } 
+                    labels: {
+                        color: textColor,
+                        font: { size: 14 }
                     }
                 },
                 tooltip: {
