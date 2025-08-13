@@ -7,6 +7,7 @@ const { EditorView } = require('@codemirror/view');
 const CONSTANTS = {
     UPDATE_INTERVAL: 1000,
     BASE62_CHARS: '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ',
+    RETENTION_DAYS: 30,
     ANALYTICS_VIEW_TYPE: "timer-analytics-view",
     REGEX: {
         ORDERED_LIST: /(^\s*#*\d+\.\s)/,
@@ -106,6 +107,39 @@ class TimerUtils {
 
     static getTodayString() {
         return new Date().toISOString().slice(0, 10);
+    }
+
+    // Date helpers and MMM-DD format
+    static startOfDay(d) {
+        const x = new Date(d);
+        x.setHours(0,0,0,0);
+        return x;
+    }
+    static endOfDay(d) {
+        const x = new Date(d);
+        x.setHours(23,59,59,999);
+        return x;
+    }
+    static startOfWeekMonday(d) {
+        const x = new Date(d);
+        const day = x.getDay(); // 0=Sun,...,6=Sat
+        const diff = x.getDate() - day + (day === 0 ? -6 : 1);
+        x.setDate(diff);
+        x.setHours(0,0,0,0);
+        return x;
+    }
+    static endOfWeekMonday(d) {
+        const s = TimerUtils.startOfWeekMonday(d);
+        const e = new Date(s);
+        e.setDate(s.getDate() + 6);
+        e.setHours(23,59,59,999);
+        return e;
+    }
+    static formatMMMDD(input) {
+        const d = (typeof input === 'string') ? new Date(input) : input;
+        const month = d.toLocaleString('en-US', { month: 'short' }); // Jan
+        const day = String(d.getDate()).padStart(2,'0'); // 01
+        return `${month}-${day}`;
     }
 }
 
@@ -470,18 +504,12 @@ class TimerPlugin extends obsidian.Plugin {
         this.default_settings = {
             autoStopTimers: 'quit',
             timerInsertLocation: 'head',
-            timersState: {},
-            dailyReset: true,
-            lastResetDate: '',
-            weeklyReset: true, 
-            lastWeeklyResetDate: ''  
+            timersState: {}
         };
         
         await this.loadSettings();
         this.fileManager = new TimerFileManager(this.app, this.settings);
-        
-        await this.handleDailyReset();
-        await this.handleWeeklyReset();
+        await this.pruneAnalyticsOlderThanOneMonth();
         this.setupCommands();
         this.setupEventHandlers();
         this.setupAnalyticsView();
@@ -523,25 +551,6 @@ class TimerPlugin extends obsidian.Plugin {
             name: 'Open Timer Analytics',
             callback: () => this.activateView(false),
         });
-
-        this.addCommand({
-            id: 'reset-timer-analytics',
-            name: 'Reset Daily Timer Analytics',
-            callback: () => this.resetAnalytics(false),
-        });
-
-        this.addCommand({
-            id: 'open-weekly-timer-analytics',
-            name: 'Open Weekly Timer Analytics',
-            callback: () => this.activateWeeklyView(),
-        });
-
-        this.addCommand({
-            id: 'reset-weekly-timer-analytics',
-            name: 'Reset Weekly Timer Analytics',
-            callback: () => this.resetAnalytics(true),
-        });
-
     }
 
     setupEventHandlers() {
@@ -737,33 +746,22 @@ class TimerPlugin extends obsidian.Plugin {
         }
     }
 
-    async resetAnalytics(weekly = false) {
-        const type = weekly ? 'weekly' : 'daily';
-        const confirmation = confirm(`Are you sure you want to delete all ${type} analytics data?`);
-        if (!confirmation) return;
-
-        const path = weekly ? this.getWeeklyAnalyticsPath() : this.getAnalyticsPath();
-        await this.app.vault.adapter.write(path, JSON.stringify([], null, 2));
-
-        const leaves = this.app.workspace.getLeavesOfType(CONSTANTS.ANALYTICS_VIEW_TYPE);
-        if (leaves.length > 0) {
-            const view = leaves[0].view;
-            if ((weekly && view.showWeekly) || (!weekly && !view.showWeekly)) {
-                view.onOpen();
-            }
-        }
-    }
-
-    
-
-    
-
     getAnalyticsPath() {
         return this.app.vault.configDir + '/plugins/tag-timer/analytics.json';
     }
 
-    getWeeklyAnalyticsPath() {
-    return this.app.vault.configDir + '/plugins/tag-timer/weekly-analytics.json';
+    async pruneAnalyticsOlderThanOneMonth() {
+        try {
+            const path = this.getAnalyticsPath();
+            let analytics = await this.loadAnalyticsData(path);
+            const cutoff = Date.now() - (CONSTANTS.RETENTION_DAYS * 24 * 60 * 60 * 1000);
+            const pruned = analytics.filter(e => new Date(e.timestamp).getTime() >= cutoff);
+            if (pruned.length !== analytics.length) {
+                await this.app.vault.adapter.write(path, JSON.stringify(pruned, null, 2));
+            }
+        } catch (e) {
+            // ignore if file not available
+        }
     }
 
     async loadSettings() {
@@ -786,9 +784,7 @@ class TimerPlugin extends obsidian.Plugin {
     onSettingChanged(key, value) {
         const handlers = {
             autoStopTimers: () => this.updateAutoStopBehavior?.(),
-            timerInsertLocation: () => { this.fileManager.settings = this.settings; },
-            dailyReset: () => value && this.handleDailyReset(),
-            weeklyReset: () => value && this.handleWeeklyReset()
+            timerInsertLocation: () => { this.fileManager.settings = this.settings; }
         };
         handlers[key]?.();
     }
@@ -822,17 +818,15 @@ class TimerPlugin extends obsidian.Plugin {
         };
 
         try {
-            // Log to daily analytics
-            const dailyPath = this.getAnalyticsPath();
-            let dailyAnalytics = await this.loadAnalyticsData(dailyPath);
-            dailyAnalytics.push(analyticsData);
-            await this.app.vault.adapter.write(dailyPath, JSON.stringify(dailyAnalytics, null, 2));
+            const path = this.getAnalyticsPath();
+            let analytics = await this.loadAnalyticsData(path);
 
-            // Log to weekly analytics
-            const weeklyPath = this.getWeeklyAnalyticsPath();
-            let weeklyAnalytics = await this.loadAnalyticsData(weeklyPath);
-            weeklyAnalytics.push(analyticsData);
-            await this.app.vault.adapter.write(weeklyPath, JSON.stringify(weeklyAnalytics, null, 2));
+            // purge older than retention
+            const cutoff = Date.now() - (CONSTANTS.RETENTION_DAYS * 24 * 60 * 60 * 1000);
+            analytics = analytics.filter(e => new Date(e.timestamp).getTime() >= cutoff);
+
+            analytics.push(analyticsData);
+            await this.app.vault.adapter.write(path, JSON.stringify(analytics, null, 2));
 
             this.settings.timersState[timerId] = dur;
             await this.saveSettings();
@@ -844,49 +838,13 @@ class TimerPlugin extends obsidian.Plugin {
     async loadAnalyticsData(analyticsPath) {
         try {
             const rawData = await this.app.vault.adapter.read(analyticsPath);
-            return rawData ? JSON.parse(rawData) : [];
+            const data = rawData ? JSON.parse(rawData) : [];
+            // safety filter on read
+            const cutoff = Date.now() - (CONSTANTS.RETENTION_DAYS * 24 * 60 * 60 * 1000);
+            return data.filter(e => new Date(e.timestamp).getTime() >= cutoff);
         } catch (readError) {
             return [];
         }
-    }
-
-    async handleDailyReset() {
-        if (!this.settings.dailyReset) return;
-
-        const today = TimerUtils.getTodayString();
-        if (this.settings.lastResetDate !== today) {
-            const analyticsPath = this.getAnalyticsPath();
-            await this.app.vault.adapter.write(analyticsPath, JSON.stringify([], null, 2));
-            this.settings.lastResetDate = today;
-            await this.saveSettings();
-
-            const leaves = this.app.workspace.getLeavesOfType(CONSTANTS.ANALYTICS_VIEW_TYPE);
-            if (leaves.length > 0) {
-                leaves[0].view.onOpen();
-            }
-        }
-    }
-
-    async handleWeeklyReset() {
-        if (!this.settings.weeklyReset) return;
-
-        const today = new Date();
-        const currentWeek = this.getWeekString(today);
-        
-        if (this.settings.lastWeeklyResetDate !== currentWeek) {
-            const weeklyPath = this.getWeeklyAnalyticsPath();
-            await this.app.vault.adapter.write(weeklyPath, JSON.stringify([], null, 2));
-            this.settings.lastWeeklyResetDate = currentWeek;
-            await this.saveSettings();
-        }
-    }
-
-    getWeekString(date) {
-        const startOfWeek = new Date(date);
-        const day = startOfWeek.getDay();
-        const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1); // Monday as first day
-        startOfWeek.setDate(diff);
-        return startOfWeek.toISOString().slice(0, 10);
     }
 }
 
@@ -925,24 +883,6 @@ class TimerSettingTab extends obsidian.PluginSettingTab {
         containerEl.createEl('h3', { text: lang.sections.basic.name });
 
         new obsidian.Setting(containerEl)
-            .setName("Daily Analytics Reset")
-            .setDesc("Automatically reset all analytics data at the start of a new day.")
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.dailyReset)
-                .onChange(async (value) => {
-                    await this.plugin.updateSetting('dailyReset', value);
-                }));
-        
-        new obsidian.Setting(containerEl)
-            .setName("Weekly Analytics Reset")
-            .setDesc("Automatically reset weekly analytics data at the start of a new week (Monday).")
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.weeklyReset)
-                .onChange(async (value) => {
-                    await this.plugin.updateSetting('weeklyReset', value);
-                }));
-
-        new obsidian.Setting(containerEl)
             .setName(lang.autostop.name)
             .setDesc(lang.autostop.desc)
             .addDropdown(dd => dd
@@ -976,15 +916,38 @@ class TimerChartManager {
     createBarChartCard(chartGrid, analytics) {
         const barCard = chartGrid.createDiv({ cls: "analytics-card chart-card" });
         const header = barCard.createDiv({ cls: "analytics-card-header" });
-        header.createEl("h3", { text: "Analytics" });
 
-        const toggleButton = header.createEl("button", { 
+        // Centered title with side arrows
+        const titleGroup = header.createDiv({ cls: "analytics-title-group" });
+        const leftArrow = titleGroup.createEl("button", { cls: "analytics-arrow", text: "◀" });
+        titleGroup.createEl("h3", { text: "Analytics", cls: "analytics-title" });
+        const rightArrow = titleGroup.createEl("button", { cls: "analytics-arrow", text: "▶" });
+
+        const controls = header.createDiv({ cls: "analytics-controls" });
+        const toggleButton = controls.createEl("button", { 
             text: this.view.showWeekly ? "Show Daily" : "Show Weekly",
             cls: "analytics-toggle-button"
         });
         toggleButton.addEventListener('click', () => {
             this.view.showWeekly = !this.view.showWeekly;
             this.view.onOpen();
+        });
+
+        // arrow navigation (daily: ±1 day, weekly: ±7 days)
+        leftArrow.addEventListener('click', () => {
+            const d = new Date(this.view.anchorDate);
+            d.setDate(d.getDate() - (this.view.showWeekly ? 7 : 1));
+            this.view.anchorDate = d;
+            this.view.onOpen();
+        });
+        rightArrow.addEventListener('click', () => {
+            const next = new Date(this.view.anchorDate);
+            next.setDate(next.getDate() + (this.view.showWeekly ? 7 : 1));
+            // prevent navigating to the future
+            if (TimerUtils.startOfDay(next) <= TimerUtils.startOfDay(new Date())) {
+                this.view.anchorDate = next;
+                this.view.onOpen();
+            }
         });
 
         const barCanvasContainer = barCard.createDiv({ cls: "canvas-container" });
@@ -995,25 +958,43 @@ class TimerChartManager {
     createDoughnutChartCard(chartGrid, analytics) {
         if (this.view.showWeekly) {
             this.createDailyBarChartCard(chartGrid, analytics);
-        } else {
-            const doughnutCard = chartGrid.createDiv({ cls: "analytics-card chart-card" });
-            doughnutCard.createEl("h3", { text: "Today's Focus" });
-            const doughnutCanvasContainer = doughnutCard.createDiv({ cls: "canvas-container" });
-            const doughnutChartCanvas = doughnutCanvasContainer.createEl("canvas");
-            this.createDoughnutChart(doughnutChartCanvas, analytics);
+            return;
         }
+        const doughnutCard = chartGrid.createDiv({ cls: "analytics-card chart-card" });
+        doughnutCard.createEl("h3", { text: `Focus (${TimerUtils.formatMMMDD(this.view.anchorDate)})` });
+        const doughnutCanvasContainer = doughnutCard.createDiv({ cls: "canvas-container" });
+        const doughnutChartCanvas = doughnutCanvasContainer.createEl("canvas");
+        this.createDoughnutChart(doughnutChartCanvas, analytics);
     }
 
     createDailyBarChartCard(chartGrid, analytics) {
         const barCard = chartGrid.createDiv({ cls: "analytics-card chart-card" });
-        barCard.createEl("h3", { text: "Weekly Focus" });
+        const { start } = this.view.getPeriodRange();
+        barCard.createEl("h3", { text: `Weekly Focus (Starting ${TimerUtils.formatMMMDD(start)})` });
         const barCanvasContainer = barCard.createDiv({ cls: "canvas-container" });
         const barChartCanvas = barCanvasContainer.createEl("canvas");
         this.createDailyBarChart(barChartCanvas, analytics);
     }
 
     createDailyBarChart(canvas, analytics) {
-        const dailyTotals = this.calculateDailyTotals(analytics);
+        const { start } = this.view.getPeriodRange(); // Monday of anchor week
+        const days = [...Array(7)].map((_, i) => {
+            const d = new Date(start);
+            d.setDate(start.getDate() + i);
+            return d;
+        });
+        const periodData = this.filterByPeriod(analytics);
+        const dayTotals = days.map(day => {
+            const s = TimerUtils.startOfDay(day).getTime();
+            const e = TimerUtils.endOfDay(day).getTime();
+            return periodData
+                .filter(a => {
+                    const t = new Date(a.timestamp).getTime();
+                    return t >= s && t <= e;
+                })
+                .reduce((sum, a) => sum + a.duration, 0);
+        });
+        const labels = days.map(d => TimerUtils.formatMMMDD(d));
         const isDarkTheme = document.body.classList.contains('theme-dark');
         const textColor = isDarkTheme ? 'white' : '#333333';
 
@@ -1045,10 +1026,10 @@ class TimerChartManager {
         };
 
         const chartData = {
-            labels: Object.keys(dailyTotals),
+            labels,
             datasets: [{
                 label: 'Daily Total',
-                data: Object.values(dailyTotals),
+                data: dayTotals,
                 backgroundColor: this.createGradient(canvas, 'x'),
                 borderColor: isDarkTheme ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
                 borderWidth: 1,
@@ -1059,41 +1040,14 @@ class TimerChartManager {
         this.createChart(canvas, 'bar', chartData, chartOptions);
     }
 
-    calculateDailyTotals(analytics) {
-        const totals = { "Sun": 0, "Mon": 0, "Tue": 0, "Wed": 0, "Thu": 0, "Fri": 0, "Sat": 0 };
-        analytics.forEach(entry => {
-            if (this.isInCurrentWeek(entry.timestamp)) {
-                const day = new Date(entry.timestamp).getDay();
-                const dayName = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][day];
-                totals[dayName] += entry.duration;
-            }
+    filterByPeriod(analytics) {
+        const { start, end } = this.view.getPeriodRange();
+        const s = start.getTime();
+        const e = end.getTime();
+        return analytics.filter(a => {
+            const t = new Date(a.timestamp).getTime();
+            return t >= s && t <= e;
         });
-        return totals;
-    }
-
-    getCurrentWeekString() {
-        const today = new Date();
-        const startOfWeek = new Date(today);
-        const day = startOfWeek.getDay();
-        const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1);
-        startOfWeek.setDate(diff);
-        return startOfWeek.toISOString().slice(0, 10);
-    }
-
-    isInCurrentWeek(timestamp) {
-        const date = new Date(timestamp);
-        const today = new Date();
-        const weekStart = new Date(today);
-        const day = weekStart.getDay();
-        const diff = weekStart.getDate() - day + (day === 0 ? -6 : 1);
-        weekStart.setDate(diff);
-        weekStart.setHours(0, 0, 0, 0);
-
-        const weekEnd = new Date(weekStart);
-        weekEnd.setDate(weekStart.getDate() + 6);
-        weekEnd.setHours(23, 59, 59, 999);
-
-        return date >= weekStart && date <= weekEnd;
     }
 
     getBaseChartOptions() {
@@ -1133,7 +1087,8 @@ class TimerChartManager {
     }
 
     createBarChart(canvas, analytics) {
-        const tagTotals = this.calculateTagTotals(analytics);
+        const periodData = this.filterByPeriod(analytics);
+        const tagTotals = this.calculateTagTotals(periodData);
         const sortedTags = Object.entries(tagTotals).sort(([, a], [, b]) => a - b);
         const isDarkTheme = document.body.classList.contains('theme-dark');
         const textColor = isDarkTheme ? 'white' : '#333333';
@@ -1237,7 +1192,7 @@ class TimerChartManager {
                     item.setTitle(`Edit "${label}"`)
                         .setIcon("pencil")
                         .onClick(() => {
-                            this.showEditModal(tag, currentValue, this.view.showWeekly);
+                            this.showEditModal(tag, currentValue);
                         })
                 );
 
@@ -1245,7 +1200,7 @@ class TimerChartManager {
                     item.setTitle(`Delete "${label}"`)
                         .setIcon("trash")
                         .onClick(() => {
-                            this.deleteTagData(tag, this.view.showWeekly).then(() => {
+                            this.deleteTagData(tag).then(() => {
                                 this.view.onOpen();
                             });
                         })
@@ -1255,7 +1210,7 @@ class TimerChartManager {
         });
     }
 
-    showEditModal(tag, currentValue, isWeekly) {
+    showEditModal(tag, currentValue) {
         const modal = new obsidian.Modal(this.app);
         modal.contentEl.createEl("h2", { text: `Edit time for ${tag}` });
     
@@ -1277,7 +1232,7 @@ class TimerChartManager {
                 .setCta()
                 .onClick(() => {
                     if (!isNaN(newTimeInSeconds) && newTimeInSeconds >= 0) {
-                        this.updateTagTime(tag, newTimeInSeconds, isWeekly).then(() => {
+                        this.updateTagTime(tag, newTimeInSeconds).then(() => {
                             modal.close();
                             this.view.onOpen();
                         });
@@ -1290,23 +1245,23 @@ class TimerChartManager {
         modal.open();
     }
 
-    async updateTagTime(tagToUpdate, newTotalDuration, isWeekly) {
-        const path = isWeekly ? this.view.weeklyAnalyticsPath : this.view.analyticsPath;
+    async updateTagTime(tagToUpdate, newTotalDuration) {
+        const path = this.view.analyticsPath;
         try {
             const rawData = await this.app.vault.adapter.read(path);
             let analytics = JSON.parse(rawData);
-    
+
             const otherEntries = analytics.filter(entry => !entry.tags.includes(tagToUpdate));
-    
+
             const newEntry = {
                 timestamp: new Date().toISOString(),
                 duration: newTotalDuration,
                 file: "manual-edit",
                 tags: [tagToUpdate]
             };
-    
+
             const updatedAnalytics = [...otherEntries, newEntry];
-    
+
             await this.app.vault.adapter.write(path, JSON.stringify(updatedAnalytics, null, 2));
         } catch (e) {
             console.error(`Error updating tag data: ${e}`);
@@ -1324,25 +1279,25 @@ class TimerChartManager {
     }
 
     createDoughnutChart(canvas, analytics) {
-        const today = TimerUtils.getTodayString();
-        const dailyTagTotals = this.calculateTagTotalsForPeriod(analytics, this.view.showWeekly ? this.getCurrentWeekString() : today);
+        const periodData = this.filterByPeriod(analytics);
+        const tagTotals = this.calculateTagTotals(periodData);
         const isDarkTheme = document.body.classList.contains('theme-dark');
         const textColor = isDarkTheme ? 'white' : '#333333';
 
-        if (Object.keys(dailyTagTotals).length === 0) {
-            const p = canvas.parentElement.createEl('p', { text: `No data for ${this.view.showWeekly ? 'this week' : 'today'}.` });
+        if (Object.keys(tagTotals).length === 0) {
+            const p = canvas.parentElement.createEl('p', { text: `No data for selected period.` });
             p.style.textAlign = 'center';
             canvas.remove();
             return;
         }
 
-        const totalDuration = Object.values(dailyTagTotals).reduce((sum, duration) => sum + duration, 0);
+        const totalDuration = Object.values(tagTotals).reduce((sum, duration) => sum + duration, 0);
 
         const chartData = {
-            labels: Object.keys(dailyTagTotals).map(tag => TimerUtils.formatTagLabel(tag)),
+            labels: Object.keys(tagTotals).map(tag => TimerUtils.formatTagLabel(tag)),
             datasets: [{
-                label: `Time Spent ${this.view.showWeekly ? 'This Week' : 'Today'}`,
-                data: Object.values(dailyTagTotals),
+                label: `Time Spent`,
+                data: Object.values(tagTotals),
                 backgroundColor: this.getDoughnutColors(),
                 borderColor: isDarkTheme ? '#333333' : '#ffffff',
                 borderWidth: 2,
@@ -1409,24 +1364,6 @@ class TimerChartManager {
         this.createChart(canvas, 'doughnut', chartData, chartOptions, [centerTextPlugin]);
     }
 
-    calculateTagTotalsForPeriod(analytics, targetDate) {
-        const totals = {};
-        const isWeekly = this.view.showWeekly;
-
-        analytics.forEach(entry => {
-            const entryDate = new Date(entry.timestamp);
-            const isInPeriod = isWeekly ? this.isInCurrentWeek(entry.timestamp) : entry.timestamp.slice(0, 10) === targetDate;
-
-            if (isInPeriod) {
-                (entry.tags || []).forEach(tag => {
-                    totals[tag] = (totals[tag] || 0) + entry.duration;
-                });
-            }
-        });
-
-        return totals;
-    }
-
     getDoughnutColors() {
         return [
             '#9050deff',
@@ -1445,8 +1382,8 @@ class TimerChartManager {
         ];
     }
 
-    async deleteTagData(tagToDelete, showWeekly) {
-        const path = showWeekly ? this.view.weeklyAnalyticsPath : this.view.analyticsPath;
+    async deleteTagData(tagToDelete) {
+        const path = this.view.analyticsPath;
         try {
             const rawData = await this.app.vault.adapter.read(path);
             let analytics = JSON.parse(rawData);
@@ -1463,8 +1400,8 @@ class TimerAnalyticsView extends obsidian.ItemView {
         super(leaf);
         this.chartjsLoaded = false;
         this.analyticsPath = this.app.vault.configDir + '/plugins/tag-timer/analytics.json';
-        this.weeklyAnalyticsPath = this.app.vault.configDir + '/plugins/tag-timer/weekly-analytics.json';  
         this.showWeekly = false;
+        this.anchorDate = new Date();
         this.chartManager = new TimerChartManager(this.app, this);
     }
 
@@ -1516,11 +1453,10 @@ class TimerAnalyticsView extends obsidian.ItemView {
         container.empty();
         container.addClass("analytics-container");
 
-        const analyticsPath = this.showWeekly ? this.weeklyAnalyticsPath : this.analyticsPath;
-        const analytics = await this.loadAnalyticsData(analyticsPath);
+        const analytics = await this.loadAnalyticsData(this.analyticsPath);
 
         if (analytics.length === 0) {
-            container.createEl("p", { text: `No ${this.showWeekly ? 'weekly' : 'daily'} analytics data found.` });
+            container.createEl("p", { text: `No analytics data found (last ${CONSTANTS.RETENTION_DAYS} days).` });
             return;
         }
 
@@ -1528,38 +1464,32 @@ class TimerAnalyticsView extends obsidian.ItemView {
 
         this.chartManager.createBarChartCard(chartGrid, analytics);
         this.chartManager.createDoughnutChartCard(chartGrid, analytics);
-        this.createResetButton(container);
     }
 
     async loadAnalyticsData(path = null) {
-        const targetPath = path || (this.showWeekly ? this.weeklyAnalyticsPath : this.analyticsPath);
+        const targetPath = path || this.analyticsPath;
         try {
             const rawData = await this.app.vault.adapter.read(targetPath);
-            return JSON.parse(rawData);
+            const data = JSON.parse(rawData);
+            // safety: keep last 30 days
+            const cutoff = Date.now() - (CONSTANTS.RETENTION_DAYS * 24 * 60 * 60 * 1000);
+            return data.filter(e => new Date(e.timestamp).getTime() >= cutoff);
         } catch (e) {
             return [];
         }
     }
 
-    createResetButton(container) {
-        const resetButton = container.createEl("button", { 
-            text: `Reset ${this.showWeekly ? 'Weekly' : 'Daily'} Analytics`, 
-            cls: "reset-analytics-button" 
-        });
-        
-        resetButton.addEventListener('click', (e) => {
-            const menu = new obsidian.Menu();
-            menu.addItem((item) =>
-                item.setTitle(`Confirm Reset ${this.showWeekly ? 'Weekly' : 'Daily'}`)
-                    .setIcon("trash")
-                    .onClick(async () => {
-                        const path = this.showWeekly ? this.weeklyAnalyticsPath : this.analyticsPath;
-                        await this.app.vault.adapter.write(path, JSON.stringify([], null, 2));
-                        this.onOpen();
-                    })
-            );
-            menu.showAtMouseEvent(e);
-        });
+    getPeriodRange() {
+        if (this.showWeekly) {
+            return {
+                start: TimerUtils.startOfWeekMonday(this.anchorDate),
+                end: TimerUtils.endOfWeekMonday(this.anchorDate),
+            };
+        }
+        return {
+            start: TimerUtils.startOfDay(this.anchorDate),
+            end: TimerUtils.endOfDay(this.anchorDate),
+        };
     }
 
     async onClose() {
@@ -1568,3 +1498,4 @@ class TimerAnalyticsView extends obsidian.ItemView {
 }
 
 module.exports = TimerPlugin;
+

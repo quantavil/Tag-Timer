@@ -1,79 +1,119 @@
 [
   {
-    "timestamp": "2025-08-08T04:30:53.683Z",
-    "duration": 3,
+    "timestamp": "2025-08-12T12:17:45.720Z",
+    "duration": 5,
     "file": "TODO.md",
     "tags": [
       "#Math"
     ]
   },
   {
-    "timestamp": "2025-08-08T04:31:01.126Z",
-    "duration": 3,
+    "timestamp": "2025-08-12T12:18:09.726Z",
+    "duration": 5,
     "file": "TODO.md",
     "tags": [
       "#Math"
     ]
   },
   {
-    "timestamp": "2025-08-08T05:31:42.960Z",
-    "duration": 7,
-    "file": "TODO.md",
-    "tags": [
-      "#Calculation"
-    ]
-  },
-  {
-    "timestamp": "2025-08-08T06:02:54.255Z",
-    "duration": 3,
-    "file": "TODO.md",
-    "tags": [
-      "#Vocab"
-    ]
-  },
-  {
-    "timestamp": "2025-08-08T07:05:11.004Z",
-    "duration": 1,
-    "file": "TODO.md",
-    "tags": [
-      "#Extra"
-    ]
-  },
-  {
-    "timestamp": "2025-08-08T07:05:23.688Z",
-    "duration": 30,
-    "file": "manual-edit",
-    "tags": [
-      "#English"
-    ]
-  },
-  {
-    "timestamp": "2025-08-08T09:00:38.900Z",
-    "duration": 1,
-    "file": "TODO.md",
-    "tags": [
-      "#Calculation"
-    ]
-  },
-  {
-    "timestamp": "2025-08-08T09:00:39.850Z",
-    "duration": 3,
-    "file": "TODO.md",
-    "tags": [
-      "#Vocab"
-    ]
-  },
-  {
-    "timestamp": "2025-08-08T09:00:41.004Z",
-    "duration": 8,
+    "timestamp": "2025-08-12T12:18:18.331Z",
+    "duration": 6,
     "file": "TODO.md",
     "tags": [
       "#Reasoning"
     ]
   },
   {
-    "timestamp": "2025-08-08T09:07:59.583Z",
-    "duration": 15,
+    "timestamp": "2025-08-12T12:18:22.506Z",
+    "duration": 9,
+    "file": "TODO.md",
+    "tags": [
+      "#English"
+    ]
+  },
+  {
+    "timestamp": "2025-08-12T14:05:14.950Z",
+    "duration": 7,
+    "file": "RESEARCH.md",
+    "tags": [
+      "#Science"
+    ]
+  },
+  {
+    "timestamp": "2025-08-12T15:12:42.215Z",
+    "duration": 3,
+    "file": "PROJECT.md",
+    "tags": [
+      "#Coding"
+    ]
+  },
+  {
+    "timestamp": "2025-08-12T09:44:18.830Z",
+    "duration": 8,
+    "file": "IDEAS.md",
+    "tags": [
+      "#Brainstorm"
+    ]
+  },
+  {
+    "timestamp": "2025-08-12T11:05:52.620Z",
+    "duration": 12,
+    "file": "DESIGN.md",
+    "tags": [
+      "#UI"
+    ]
+  },
+  {
+    "timestamp": "2025-08-12T13:32:44.540Z",
+    "duration": 6,
+    "file": "ANALYSIS.md",
+    "tags": [
+      "#Data"
+    ]
+  },
+  {
+    "timestamp": "2025-08-13T12:24:15.350Z",
+    "duration": 6,
+    "file": "TODO.md",
+    "tags": [
+      "#Math"
+    ]
+  },
+  {
+    "timestamp": "2025-08-13T12:24:21.306Z",
+    "duration": 11,
+    "file": "TODO.md",
+    "tags": [
+      "#English"
+    ]
+  },
+  {
+    "timestamp": "2025-08-13T12:24:23.661Z",
+    "duration": 11,
+    "file": "TODO.md",
+    "tags": [
+      "#Reasoning"
+    ]
+  },
+  {
+    "timestamp": "2025-08-13T12:24:26.259Z",
+    "duration": 12,
+    "file": "TODO.md",
+    "tags": [
+      "#Vocab"
+    ]
+  },
+  {
+    "timestamp": "2025-08-13T12:24:37.729Z",
+    "duration": 19,
+    "file": "TODO.md",
+    "tags": [
+      "#Math"
+    ]
+  },
+  {
+    "timestamp": "2025-08-13T12:24:53.417Z",
+    "duration": 8,
     "file": "TODO.md",
     "tags": [
       "#Math"

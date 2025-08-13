@@ -1,34 +1,74 @@
 [
   {
-    "timestamp": "2025-08-08T09:00:38.900Z",
+    "timestamp": "2025-08-12T09:00:38.900Z",
     "duration": 1,
     "file": "TODO.md",
-    "tags": [
-      "#Calculation"
-    ]
+    "tags": ["#Calculation"]
   },
   {
-    "timestamp": "2025-08-08T09:00:39.850Z",
+    "timestamp": "2025-08-12T09:00:39.850Z",
     "duration": 3,
     "file": "TODO.md",
-    "tags": [
-      "#Vocab"
-    ]
+    "tags": ["#Vocab"]
   },
   {
-    "timestamp": "2025-08-08T09:00:41.004Z",
+    "timestamp": "2025-08-12T09:00:41.004Z",
     "duration": 8,
     "file": "TODO.md",
-    "tags": [
-      "#Reasoning"
-    ]
+    "tags": ["#Reasoning"]
   },
   {
-    "timestamp": "2025-08-08T09:07:59.583Z",
+    "timestamp": "2025-08-12T09:07:59.583Z",
     "duration": 15,
     "file": "TODO.md",
-    "tags": [
-      "#Math"
-    ]
+    "tags": ["#Math"]
+  },
+  {
+    "timestamp": "2025-08-12T10:15:22.430Z",
+    "duration": 12,
+    "file": "NOTES.md",
+    "tags": ["#Science"]
+  },
+  {
+    "timestamp": "2025-08-12T10:30:10.120Z",
+    "duration": 4,
+    "file": "PROJECT.md",
+    "tags": ["#Coding"]
+  },
+  {
+    "timestamp": "2025-08-12T08:44:52.780Z",
+    "duration": 6,
+    "file": "IDEAS.md",
+    "tags": ["#Brainstorm"]
+  },
+  {
+    "timestamp": "2025-08-12T09:02:15.900Z",
+    "duration": 9,
+    "file": "RESEARCH.md",
+    "tags": ["#History"]
+  },
+  {
+    "timestamp": "2025-08-12T07:25:44.450Z",
+    "duration": 14,
+    "file": "ANALYSIS.md",
+    "tags": ["#Data"]
+  },
+  {
+    "timestamp": "2025-08-12T07:40:11.030Z",
+    "duration": 7,
+    "file": "PROJECT.md",
+    "tags": ["#Testing"]
+  },
+  {
+    "timestamp": "2025-08-12T06:55:37.980Z",
+    "duration": 5,
+    "file": "TODO.md",
+    "tags": ["#QuickNote"]
+  },
+  {
+    "timestamp": "2025-08-12T07:20:48.350Z",
+    "duration": 10,
+    "file": "DESIGN.md",
+    "tags": ["#UI"]
   }
 ]
