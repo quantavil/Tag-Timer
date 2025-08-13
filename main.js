@@ -10,8 +10,8 @@ const CONSTANTS = {
     RETENTION_DAYS: 30,
     ANALYTICS_VIEW_TYPE: "timer-analytics-view",
     REGEX: {
-        ORDERED_LIST: /(^\s*#*\d+\.\s)/,
-        UNORDERED_LIST: /(^\s*#*[-/+/*]\s)/,
+        ORDERED_LIST: /(^\s*>?\s*\d+\.\s)/,
+        UNORDERED_LIST: /(^\s*>?\s*[-+*]\s)/,
         HEADER: /(^\s*#+\s)/,
         TIMER_SPAN: /<span class="timer-[rp]"[^>]*>.*?<\/span>/,
         OLD_TIMER: /<span class="timer-btn"[^>]*>.*?<\/span>/,
@@ -623,11 +623,41 @@ class TimerPlugin extends obsidian.Plugin {
     handleRestore(view, lineNum, parsedData) { return this.handleTimerAction('restore', view, lineNum, parsedData); }
     handleForcePause(view, lineNum, parsedData) { return this.handleTimerAction('forcepause', view, lineNum, parsedData); }
 
-    onunload() {
+    async flushRunningTimers() {
+        if (this.settings.autoStopTimers === 'never') return; // don't double-count across sessions
+        const now = TimerUtils.getCurrentTimestamp();
+        const timers = this.manager.getAllTimers();
+
+        for (const [timerId, data] of timers) {
+            if (data?.class !== 'timer-r') continue;
+
+            const paused = TimerDataUpdater.calculate('pause', data, now);
+
+            // try to get line text for tags; fallback to empty if not available
+            let lineText = '';
+            let filePath = '';
+            const loc = this.fileManager?.locations?.get(timerId);
+            if (loc?.file) {
+                filePath = loc.file.path;
+                try {
+                    const content = await this.app.vault.read(loc.file);
+                    const lines = content.split('\n');
+                    lineText = lines[loc.lineNum] || '';
+                } catch (_) { }
+            }
+
+            await this.logAnalytics(paused, lineText, filePath);
+            this.manager.stopTimer(timerId);
+        }
+    }
+
+    async onunload() {
+        try {
+            await this.flushRunningTimers();
+        } catch (_) { }
         this.manager.clearAll();
         this.fileManager.clearLocations();
     }
-
     onEditorMenu(menu, editor, view) {
         const lineNum = editor.getCursor().line;
         const lineText = editor.getLine(lineNum);
@@ -687,6 +717,20 @@ class TimerPlugin extends obsidian.Plugin {
 
         const updated = await this.fileManager.updateTimer(timerId, newData);
         if (!updated) {
+            if (this.settings.autoStopTimers === 'close') {
+                const loc = this.fileManager.locations.get(timerId);
+                let lineText = '';
+                let filePath = '';
+                if (loc?.file) {
+                    filePath = loc.file.path;
+                    try {
+                        const content = await this.app.vault.read(loc.file);
+                        const lines = content.split('\n');
+                        lineText = lines[loc.lineNum] || '';
+                    } catch (_) { }
+                }
+                await this.logAnalytics(newData, lineText, filePath);
+            }
             this.manager.stopTimer(timerId);
         }
     }
@@ -1089,7 +1133,7 @@ class TimerChartManager {
     createBarChart(canvas, analytics) {
         const periodData = this.filterByPeriod(analytics);
         const tagTotals = this.calculateTagTotals(periodData);
-        const sortedTags = Object.entries(tagTotals).sort(([, a], [, b]) => a - b);
+        const sortedTags = Object.entries(tagTotals).sort(([, a], [, b]) => b - a);
         const isDarkTheme = document.body.classList.contains('theme-dark');
         const textColor = isDarkTheme ? 'white' : '#333333';
 
