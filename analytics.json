@@ -1,74 +1,10 @@
 [
   {
-    "timestamp": "2025-08-12T12:17:45.720Z",
-    "duration": 5,
-    "file": "TODO.md",
-    "tags": [
-      "#Math"
-    ]
-  },
-  {
-    "timestamp": "2025-08-12T12:18:09.726Z",
-    "duration": 5,
-    "file": "TODO.md",
-    "tags": [
-      "#Math"
-    ]
-  },
-  {
-    "timestamp": "2025-08-12T12:18:18.331Z",
-    "duration": 6,
-    "file": "TODO.md",
-    "tags": [
-      "#Reasoning"
-    ]
-  },
-  {
-    "timestamp": "2025-08-12T12:18:22.506Z",
-    "duration": 9,
-    "file": "TODO.md",
-    "tags": [
-      "#English"
-    ]
-  },
-  {
-    "timestamp": "2025-08-12T14:05:14.950Z",
-    "duration": 7,
-    "file": "RESEARCH.md",
-    "tags": [
-      "#Science"
-    ]
-  },
-  {
     "timestamp": "2025-08-12T13:32:44.540Z",
     "duration": 6,
     "file": "ANALYSIS.md",
     "tags": [
       "#Data"
-    ]
-  },
-  {
-    "timestamp": "2025-08-13T12:24:15.350Z",
-    "duration": 6,
-    "file": "TODO.md",
-    "tags": [
-      "#Math"
-    ]
-  },
-  {
-    "timestamp": "2025-08-13T12:24:21.306Z",
-    "duration": 11,
-    "file": "TODO.md",
-    "tags": [
-      "#English"
-    ]
-  },
-  {
-    "timestamp": "2025-08-13T12:24:23.661Z",
-    "duration": 11,
-    "file": "TODO.md",
-    "tags": [
-      "#Reasoning"
     ]
   },
   {
@@ -80,83 +16,11 @@
     ]
   },
   {
-    "timestamp": "2025-08-13T12:24:37.729Z",
-    "duration": 19,
-    "file": "TODO.md",
-    "tags": [
-      "#Math"
-    ]
-  },
-  {
-    "timestamp": "2025-08-13T12:24:53.417Z",
-    "duration": 8,
-    "file": "TODO.md",
-    "tags": [
-      "#Math"
-    ]
-  },
-  {
-    "timestamp": "2025-08-13T13:32:27.582Z",
-    "duration": 5,
-    "file": "TODO.md",
-    "tags": [
-      "#Reasoning"
-    ]
-  },
-  {
-    "timestamp": "2025-08-13T13:32:32.271Z",
-    "duration": 1,
-    "file": "TODO.md",
-    "tags": [
-      "#Math"
-    ]
-  },
-  {
-    "timestamp": "2025-08-13T13:32:41.254Z",
-    "duration": 4,
-    "file": "TODO.md",
-    "tags": [
-      "#Math"
-    ]
-  },
-  {
-    "timestamp": "2025-08-13T13:33:03.866Z",
-    "duration": 2,
-    "file": "TODO.md",
-    "tags": [
-      "#Math"
-    ]
-  },
-  {
-    "timestamp": "2025-08-13T13:33:09.070Z",
-    "duration": 10,
-    "file": "TODO.md",
-    "tags": [
-      "#Math"
-    ]
-  },
-  {
     "timestamp": "2025-08-13T13:33:24.406Z",
     "duration": 2,
     "file": "TODO.md",
     "tags": [
       "#Calculation"
-    ]
-  },
-  {
-    "timestamp": "2025-08-13T13:33:33.274Z",
-    "duration": 6,
-    "file": "TODO.md",
-    "tags": [
-      "#Reasoning"
-    ]
-  },
-  {
-    "timestamp": "2025-08-13T13:33:34.821Z",
-    "duration": 5,
-    "file": "TODO.md",
-    "tags": [
-      "#Reasoning"
     ]
   },
   {
@@ -176,35 +40,19 @@
     ]
   },
   {
-    "timestamp": "2025-08-13T13:40:02.404Z",
-    "duration": 2,
+    "timestamp": "2025-08-13T14:04:20.828Z",
+    "duration": 5,
     "file": "TODO.md",
     "tags": [
-      "#Reasoning"
+      "#Vocab"
     ]
   },
   {
-    "timestamp": "2025-08-13T13:40:05.492Z",
-    "duration": 1,
+    "timestamp": "2025-08-13T14:04:31.507Z",
+    "duration": 10,
     "file": "TODO.md",
     "tags": [
-      "#Reasoning"
-    ]
-  },
-  {
-    "timestamp": "2025-08-13T13:40:09.661Z",
-    "duration": 11,
-    "file": "TODO.md",
-    "tags": [
-      "#English"
-    ]
-  },
-  {
-    "timestamp": "2025-08-13T13:40:10.912Z",
-    "duration": 20,
-    "file": "TODO.md",
-    "tags": [
-      "#Math"
+      "#Vocab"
     ]
   }
 ]

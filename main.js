@@ -732,6 +732,9 @@ class TimerPlugin extends obsidian.Plugin {
                 await this.logAnalytics(newData, lineText, filePath);
             }
             this.manager.stopTimer(timerId);
+            this.fileManager.locations.delete(timerId); 
+            this.cleanupTimerState(timerId);
+
         }
     }
 
