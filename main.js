@@ -1,13 +1,5 @@
 'use strict';
 
-/**
- * Tag Timer Plugin (Refactored)
- * - Reduced redundancy (central analytics store, no legacy timer parsing, unified read/write)
- * - Fixed "Edit from bar graph moves to today" by period-anchored adjustments
- * - No backward compatibility for old timer spans
- * - Keeps existing functionality: timers, context menu, auto-stop, analytics view (bar + doughnut)
- */
-
 const obsidian = require('obsidian');
 
 /* ------------------------------ Constants & Lang ------------------------------ */
@@ -505,10 +497,8 @@ class TimerPlugin extends obsidian.Plugin {
 
         // Central analytics store
         this.analyticsStore = new AnalyticsStore(this.app, CONSTANTS.RETENTION_DAYS, this.getAnalyticsPath());
-
         this.fileManager = new TimerFileManager(this.app, this.settings);
         await this.analyticsStore.prune();
-
         this.setupCommands();
         this.setupEventHandlers();
         this.setupAnalyticsView();
@@ -771,7 +761,6 @@ class TimerPlugin extends obsidian.Plugin {
         } else {
             this.app.workspace.revealLeaf(leaf);
         }
-
         if (leaf.view instanceof TimerAnalyticsView) {
             // inject store instance
             leaf.view.analyticsStore = this.analyticsStore;
@@ -845,7 +834,6 @@ class TimerChartManager {
     createBarChartCard(chartGrid, analytics) {
         const barCard = chartGrid.createDiv({ cls: "analytics-card chart-card" });
         const header = barCard.createDiv({ cls: "analytics-card-header" });
-
         // Navigation + title
         const titleGroup = header.createDiv({ cls: "analytics-title-group" });
         const leftArrow = titleGroup.createEl("button", { cls: "analytics-arrow", text: "<" });

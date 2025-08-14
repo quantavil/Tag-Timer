@@ -252,5 +252,57 @@
     "tags": [
       "#Math"
     ]
+  },
+  {
+    "timestamp": "2025-08-14T05:32:35.508Z",
+    "duration": 12,
+    "file": "TODO.md",
+    "tags": [
+      "#Vocab"
+    ]
+  },
+  {
+    "timestamp": "2025-08-14T06:30:00.000Z",
+    "duration": 100,
+    "file": "manual-edit",
+    "tags": [
+      "#Vocab"
+    ],
+    "type": "adjust"
+  },
+  {
+    "timestamp": "2025-08-14T05:33:19.972Z",
+    "duration": 6,
+    "file": "TODO.md",
+    "tags": [
+      "#Extra"
+    ]
+  },
+  {
+    "timestamp": "2025-08-14T06:30:00.000Z",
+    "duration": -8,
+    "file": "manual-edit",
+    "tags": [
+      "#Extra"
+    ],
+    "type": "adjust"
+  },
+  {
+    "timestamp": "2025-08-14T06:30:00.000Z",
+    "duration": -50,
+    "file": "manual-edit",
+    "tags": [
+      "#Extra"
+    ],
+    "type": "adjust"
+  },
+  {
+    "timestamp": "2025-08-14T06:30:00.000Z",
+    "duration": 52,
+    "file": "manual-edit",
+    "tags": [
+      "#Extra"
+    ],
+    "type": "adjust"
   }
 ]
