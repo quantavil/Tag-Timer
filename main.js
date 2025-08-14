@@ -355,6 +355,7 @@ class TimerFileManager {
         } else {
             const pos = this.calculateInsertPosition(editor, lineNum, this.settings.timerInsertLocation);
             before = pos.before; after = pos.after;
+            newSpan = ' ' + newSpan;
         }
         editor.replaceRange(newSpan, { line: lineNum, ch: before }, { line: lineNum, ch: after });
     }

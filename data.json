@@ -1,6 +1,6 @@
 {
   "autoStopTimers": "quit",
-  "timerInsertLocation": "head",
+  "timerInsertLocation": "cursor",
   "timersState": {
     "uTKUfFZ": 6,
     "uTKUfYY": 9,
@@ -53,6 +53,12 @@
     "uTOMBUq": 141,
     "uTONgGf": 15,
     "uTONnpf": 6,
-    "uTONr5j": 3
+    "uTONr5j": 3,
+    "uTOQ4Y9": 9,
+    "uTOTBUU": 6,
+    "uTOU7sZ": 24,
+    "uTOUb20": 11,
+    "uTOUsS0": 2,
+    "uTOW0kl": 2
   }
 }
