@@ -959,7 +959,7 @@ class TimerChartManager {
     createBarChart(canvas, analytics) {
         const periodData = this.filterByPeriod(analytics);
         const tagTotals = this.calculateTagTotals(periodData);
-        const sorted = Object.entries(tagTotals).sort(([, a], [, b]) => b - a);
+        const sorted = Object.entries(tagTotals).filter(([, sec]) => sec > 0).sort(([, a], [, b]) => b - a);
         const isDark = document.body.classList.contains('theme-dark');
         const text = isDark ? 'white' : '#333333';
 
