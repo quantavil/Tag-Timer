@@ -1129,9 +1129,9 @@ class TimerChartManager {
 
     getDoughnutColors() {
         return [
-            '#9050deff','#3678e3ff','#A55B4Bff','#1daec4ff','#d8324eff',
-            '#26c2aeff','#28c088ff','#cd742cff','#dc549aff','#5c69dbff',
-            '#70839dff','#065084ff','#4F1C51ff'
+            '#9050deff', '#3678e3ff', '#A55B4Bff', '#1daec4ff', '#d8324eff',
+            '#26c2aeff', '#28c088ff', '#cd742cff', '#dc549aff', '#5c69dbff',
+            '#70839dff', '#065084ff', '#4F1C51ff'
         ];
     }
 
@@ -1189,15 +1189,26 @@ class TimerChartManager {
     }
 
     // Period-aware anchored edit (fixes "moves to today" bug)
+    // Inside TimerChartManager class
+
     async updateTagTime(tagToUpdate, newTotalDuration) {
         const range = this.view.getPeriodRange();
-        await this.view.analyticsStore.setTagTotalForPeriod(tagToUpdate, newTotalDuration, range, this.view.anchorDate);
+        let anchorDateForAdjustment = this.view.anchorDate;
+        if (this.view.showWeekly) {
+            anchorDateForAdjustment = range.start; 
+        }
+        await this.view.analyticsStore.setTagTotalForPeriod(tagToUpdate, newTotalDuration, range, anchorDateForAdjustment);
     }
 
     // Period-aware clear (set to zero by adding a negative delta if needed)
     async deleteTagData(tagToDelete) {
         const range = this.view.getPeriodRange();
-        await this.view.analyticsStore.setTagTotalForPeriod(tagToDelete, 0, range, this.view.anchorDate);
+        let anchorDateForAdjustment = this.view.anchorDate;
+
+        if (this.view.showWeekly) {
+            anchorDateForAdjustment = range.start; 
+        }
+        await this.view.analyticsStore.setTagTotalForPeriod(tagToDelete, 0, range, anchorDateForAdjustment);
     }
 }
 
