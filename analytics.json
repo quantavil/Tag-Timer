@@ -8,51 +8,193 @@
     ]
   },
   {
-    "timestamp": "2025-08-13T12:24:26.259Z",
+    "timestamp": "2025-08-13T17:26:48.508Z",
+    "duration": 1,
+    "file": "TODO.md",
+    "tags": [
+      "#Extra"
+    ]
+  },
+  {
+    "timestamp": "2025-08-14T03:38:18.331Z",
+    "duration": 173,
+    "file": "manual-edit",
+    "tags": [
+      "#Math"
+    ]
+  },
+  {
+    "timestamp": "2025-08-14T03:42:51.233Z",
+    "duration": 1,
+    "file": "TODO.md",
+    "tags": [
+      "#Math"
+    ]
+  },
+  {
+    "timestamp": "2025-08-14T03:44:05.616Z",
+    "duration": 1,
+    "file": "TODO.md",
+    "tags": [
+      "#Math"
+    ]
+  },
+  {
+    "timestamp": "2025-08-14T03:46:21.398Z",
+    "duration": 130,
+    "file": "TODO.md",
+    "tags": [
+      "#Math"
+    ]
+  },
+  {
+    "timestamp": "2025-08-14T03:46:31.480Z",
+    "duration": 1,
+    "file": "TODO.md",
+    "tags": [
+      "#Math"
+    ]
+  },
+  {
+    "timestamp": "2025-08-14T03:52:31.436Z",
     "duration": 12,
     "file": "TODO.md",
     "tags": [
+      "#Math"
+    ]
+  },
+  {
+    "timestamp": "2025-08-14T03:56:18.845Z",
+    "duration": 38,
+    "file": "manual-edit",
+    "tags": [
+      "#English"
+    ]
+  },
+  {
+    "timestamp": "2025-08-14T03:56:47.417Z",
+    "duration": 1,
+    "file": "manual-edit",
+    "tags": [
       "#Vocab"
     ]
   },
   {
-    "timestamp": "2025-08-13T13:33:24.406Z",
-    "duration": 2,
-    "file": "TODO.md",
+    "timestamp": "2025-08-14T03:56:58.389Z",
+    "duration": 811,
+    "file": "manual-edit",
+    "tags": [
+      "#Reasoning"
+    ]
+  },
+  {
+    "timestamp": "2025-08-14T03:57:08.515Z",
+    "duration": 171,
+    "file": "manual-edit",
     "tags": [
       "#Calculation"
     ]
   },
   {
-    "timestamp": "2025-08-13T13:34:47.198Z",
-    "duration": 7,
+    "timestamp": "2025-08-14T04:13:20.840Z",
+    "duration": 30,
     "file": "TODO.md",
     "tags": [
-      "#Calculation"
+      "#Math"
     ]
   },
   {
-    "timestamp": "2025-08-13T13:34:54.780Z",
+    "timestamp": "2025-08-14T06:30:00.000Z",
+    "duration": -248,
+    "file": "manual-edit",
+    "tags": [
+      "#Math"
+    ],
+    "type": "adjust"
+  },
+  {
+    "timestamp": "2025-08-14T06:30:00.000Z",
+    "duration": -161,
+    "file": "manual-edit",
+    "tags": [
+      "#Calculation"
+    ],
+    "type": "adjust"
+  },
+  {
+    "timestamp": "2025-08-14T04:13:55.060Z",
+    "duration": 69,
+    "file": "TODO.md",
+    "tags": [
+      "#Math"
+    ]
+  },
+  {
+    "timestamp": "2025-08-14T06:30:00.000Z",
+    "duration": -49,
+    "file": "manual-edit",
+    "tags": [
+      "#Math"
+    ],
+    "type": "adjust"
+  },
+  {
+    "timestamp": "2025-08-13T06:30:00.000Z",
+    "duration": 9,
+    "file": "manual-edit",
+    "tags": [
+      "#Extra"
+    ],
+    "type": "adjust"
+  },
+  {
+    "timestamp": "2025-08-12T06:30:00.000Z",
+    "duration": 56,
+    "file": "manual-edit",
+    "tags": [
+      "#Data"
+    ],
+    "type": "adjust"
+  },
+  {
+    "timestamp": "2025-08-13T06:30:00.000Z",
+    "duration": 92,
+    "file": "manual-edit",
+    "tags": [
+      "#Extra"
+    ],
+    "type": "adjust"
+  },
+  {
+    "timestamp": "2025-08-14T04:15:16.774Z",
+    "duration": 141,
+    "file": "TODO.md",
+    "tags": [
+      "#English"
+    ]
+  },
+  {
+    "timestamp": "2025-08-14T04:15:47.866Z",
+    "duration": 15,
+    "file": "TODO.md",
+    "tags": [
+      "#Vocab"
+    ]
+  },
+  {
+    "timestamp": "2025-08-14T04:16:04.787Z",
+    "duration": 6,
+    "file": "TODO.md",
+    "tags": [
+      "#Vocab"
+    ]
+  },
+  {
+    "timestamp": "2025-08-14T04:16:15.724Z",
     "duration": 3,
     "file": "TODO.md",
     "tags": [
-      "#Calculation"
-    ]
-  },
-  {
-    "timestamp": "2025-08-13T14:04:20.828Z",
-    "duration": 5,
-    "file": "TODO.md",
-    "tags": [
-      "#Vocab"
-    ]
-  },
-  {
-    "timestamp": "2025-08-13T14:04:31.507Z",
-    "duration": 10,
-    "file": "TODO.md",
-    "tags": [
-      "#Vocab"
+      "#Reasoning"
     ]
   }
 ]
