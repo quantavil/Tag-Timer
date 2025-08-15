@@ -191,9 +191,12 @@ class AnalyticsStore {
 
     async sumTagInRange(tag, start, end) {
         const all = await this.readAll();
-        return all
+        const sum = all
             .filter(e => e.tags?.includes(tag) && AnalyticsStore.isInRange(e.timestamp, start, end))
             .reduce((s, e) => s + (e.duration || 0), 0);
+
+        // Prevent negative totals
+        return Math.max(0, sum);
     }
 
     /**
@@ -929,7 +932,7 @@ class TimerChartManager {
 
     createChart(canvas, type, data, specificOptions = {}, plugins = []) {
         const base = this.getBaseChartOptions();
-        const options = { ...base, ...specificOptions };
+        const options = { ...base, ...specificOptions, plugins: { ...base.plugins, ...specificOptions.plugins } };
         return new Chart(canvas.getContext('2d'), { type, data, options, plugins });
     }
 
@@ -1195,7 +1198,7 @@ class TimerChartManager {
         const range = this.view.getPeriodRange();
         let anchorDateForAdjustment = this.view.anchorDate;
         if (this.view.showWeekly) {
-            anchorDateForAdjustment = range.start; 
+            anchorDateForAdjustment = range.start;
         }
         await this.view.analyticsStore.setTagTotalForPeriod(tagToUpdate, newTotalDuration, range, anchorDateForAdjustment);
     }
@@ -1206,7 +1209,7 @@ class TimerChartManager {
         let anchorDateForAdjustment = this.view.anchorDate;
 
         if (this.view.showWeekly) {
-            anchorDateForAdjustment = range.start; 
+            anchorDateForAdjustment = range.start;
         }
         await this.view.analyticsStore.setTagTotalForPeriod(tagToDelete, 0, range, anchorDateForAdjustment);
     }
