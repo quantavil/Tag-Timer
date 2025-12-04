@@ -26,11 +26,11 @@ const LANG = {
     command_name: { toggle: "Toggle timer", delete: "Delete timer" },
     action_start: "Start timer", action_paused: "Pause timer", action_continue: "Continue timer",
     settings: {
-        name: "Tag Timer Settings", desc: "Configure timer behavior",
+        name: "Tag timer settings", desc: "Configure timer behavior",
         tutorial: "For detailed instructions, visit: ",
         askforvote: "If you find this plugin helpful, please consider giving it a star on GitHub!🌟",
         issue: "If you encounter any issues, please report them on GitHub along with version and steps to reproduce.",
-        sections: { basic: { name: "Basic Settings" } },
+        sections: { basic: { name: "Basic settings" } },
         autostop: {
             name: "Auto-stop timers", desc: "When to automatically stop running timers",
             choice: { never: "Never", quit: "On Obsidian quit", close: "On file close" }
@@ -127,16 +127,27 @@ class TimerManager {
     constructor() { this.timers = new Map(); this.startedIds = new Set(); }
     startTimer(timerId, initialData, tick) {
         if (this.timers.has(timerId)) return;
-        const intervalId = setInterval(() => tick(timerId), CONSTANTS.UPDATE_INTERVAL_MS);
+        // Fix: Use window.setInterval
+        const intervalId = window.setInterval(() => tick(timerId), CONSTANTS.UPDATE_INTERVAL_MS);
         this.timers.set(timerId, { intervalId, data: initialData }); this.startedIds.add(timerId);
     }
-    stopTimer(timerId) { const item = this.timers.get(timerId); if (!item) return; clearInterval(item.intervalId); this.timers.delete(timerId); }
+    stopTimer(timerId) { 
+        const item = this.timers.get(timerId); 
+        if (!item) return; 
+        // Fix: Use window.clearInterval
+        window.clearInterval(item.intervalId); 
+        this.timers.delete(timerId); 
+    }
     updateTimerData(timerId, data) { const item = this.timers.get(timerId); if (item) item.data = data; }
     getTimerData(timerId) { return this.timers.get(timerId)?.data || null; }
     hasTimer(timerId) { return this.timers.has(timerId); }
     isStartedInThisSession(timerId) { return this.startedIds.has(timerId); }
     getAllTimers() { return new Map(Array.from(this.timers.entries()).map(([id, t]) => [id, t.data])); }
-    clearAll() { this.timers.forEach(t => clearInterval(t.intervalId)); this.timers.clear(); this.startedIds.clear(); }
+    clearAll() { 
+        // Fix: Use window.clearInterval
+        this.timers.forEach(t => window.clearInterval(t.intervalId)); 
+        this.timers.clear(); this.startedIds.clear(); 
+    }
 }
 
 /* ------------------------------ File Manager ------------------------------ */
@@ -153,10 +164,19 @@ class TimerFileManager {
         this.locations.set(timerId, { view, file, lineNum }); return timerId;
     }
     async writeTimerPreview(file, lineNum, newSpan, parsedResult) {
-        const content = await this.app.vault.read(file), lines = content.split('\n'); const line = lines[lineNum] ?? ''; let modified = false;
-        if (line.match(CONSTANTS.REGEX.TIMER_SPAN)) { lines[lineNum] = line.replace(CONSTANTS.REGEX.TIMER_SPAN, newSpan); modified = true; }
-        else if (parsedResult === null) { const position = this.calculateInsertPosition({ getLine: () => line }, 0, this.settings.timerInsertLocation); lines[lineNum] = this.insertSpanAtPosition(line, newSpan, position); modified = true; }
-        if (modified) await this.app.vault.modify(file, lines.join('\n'));
+        // Fix: Use Vault.process for atomic updates instead of modify
+        await this.app.vault.process(file, (data) => {
+            const lines = data.split('\n');
+            const line = lines[lineNum] ?? '';
+            
+            if (line.match(CONSTANTS.REGEX.TIMER_SPAN)) {
+                lines[lineNum] = line.replace(CONSTANTS.REGEX.TIMER_SPAN, newSpan);
+            } else if (parsedResult === null) {
+                const position = this.calculateInsertPosition({ getLine: () => line }, 0, this.settings.timerInsertLocation);
+                lines[lineNum] = this.insertSpanAtPosition(line, newSpan, position);
+            }
+            return lines.join('\n');
+        });
     }
     writeTimerSource(editor, lineNum, newSpan, parsedResult, timerId) {
         let before, after;
@@ -246,7 +266,8 @@ class TimerPlugin extends obsidian.Plugin {
             id: 'delete-timer', icon: 'trash', name: LANG.command_name.delete,
             editorCallback: (editor, view) => { const lineNum = editor.getCursor().line; const parsed = TimerParser.parse(editor.getLine(lineNum)); if (parsed) this.handleTimerAction('delete', view, lineNum, parsed); },
         });
-        this.addCommand({ id: 'open-timer-analytics', name: 'Open Timer Analytics', callback: () => this.activateView(false) });
+        // Fix: Sentence case
+        this.addCommand({ id: 'open-timer-analytics', name: 'Open timer analytics', callback: () => this.activateView(false) });
     }
     setupEventHandlers() {
         this.registerEvent(this.app.workspace.on('editor-menu', this.onEditorMenu.bind(this)));
@@ -255,7 +276,8 @@ class TimerPlugin extends obsidian.Plugin {
     }
     setupAnalyticsView() {
         this.registerView(CONSTANTS.ANALYTICS_VIEW_TYPE, (leaf) => new TimerAnalyticsView(leaf));
-        this.addRibbonIcon("pie-chart", "Open Timer Analytics", () => this.activateView());
+        // Fix: Sentence case
+        this.addRibbonIcon("pie-chart", "Open timer analytics", () => this.activateView());
         this.addSettingTab(new TimerSettingTab(this.app, this));
     }
 
@@ -392,11 +414,15 @@ class TimerSettingTab extends obsidian.PluginSettingTab {
     constructor(app, plugin) { super(app, plugin); this.plugin = plugin; }
     display() {
         const { containerEl } = this; containerEl.empty(); const lang = LANG.settings;
-        containerEl.createEl('h1', { text: lang.name }); containerEl.createEl('p', { text: lang.desc });
-        const tutorial = containerEl.createEl('div', { cls: 'tutorial-info' }); const p = tutorial.createEl('p');
+        // Fix: Use setHeading instead of h1
+        new obsidian.Setting(containerEl).setName(lang.name).setHeading();
+        containerEl.createEl('p', { text: lang.desc });
+        const tutorial = containerEl.createDiv({ cls: 'tutorial-info' }); const p = tutorial.createEl('p');
         p.appendText(lang.tutorial); p.createEl('a', { text: 'GitHub', href: 'https://github.com/quantavil/tag-timer', target: '_blank' });
         containerEl.createEl('p', { text: lang.askforvote }); containerEl.createEl('p', { text: lang.issue });
-        containerEl.createEl('h3', { text: lang.sections.basic.name });
+        
+        // Fix: Use setHeading instead of h3
+        new obsidian.Setting(containerEl).setName(lang.sections.basic.name).setHeading();
 
         new obsidian.Setting(containerEl)
             .setName(lang.autostop.name).setDesc(lang.autostop.desc)
@@ -422,7 +448,8 @@ class TimerChartManager {
         titleGroup.createEl("h3", { text: "Analytics", cls: "analytics-title" });
         const rightArrow = titleGroup.createEl("button", { cls: "analytics-arrow", text: ">" });
         const controls = header.createDiv({ cls: "analytics-controls" });
-        const toggleButton = controls.createEl("button", { text: this.view.showWeekly ? "Show Daily" : "Show Weekly", cls: "analytics-toggle-button" });
+        // Fix: Sentence case
+        const toggleButton = controls.createEl("button", { text: this.view.showWeekly ? "Show daily" : "Show weekly", cls: "analytics-toggle-button" });
         toggleButton.addEventListener('click', () => { this.view.showWeekly = !this.view.showWeekly; this.view.onOpen(); });
         leftArrow.addEventListener('click', () => { const d = new Date(this.view.anchorDate); d.setDate(d.getDate() - (this.view.showWeekly ? 7 : 1)); this.view.anchorDate = d; this.view.onOpen(); });
         rightArrow.addEventListener('click', () => {
@@ -492,7 +519,8 @@ class TimerChartManager {
         const chartData = {
             labels: sorted.map(([tag]) => TimerUtils.formatTagLabel(tag)),
             datasets: [{
-                label: 'Total Time',
+                // Fix: Sentence case
+                label: 'Total time',
                 data: sorted.map(([, sec]) => sec),
                 backgroundColor: this.createGradient(canvas, 'y'),
                 borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
@@ -535,7 +563,8 @@ class TimerChartManager {
         };
         const data = {
             labels, datasets: [{
-                label: 'Daily Total', data: totals, backgroundColor: this.createGradient(canvas, 'x'),
+                // Fix: Sentence case
+                label: 'Daily total', data: totals, backgroundColor: this.createGradient(canvas, 'x'),
                 borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)', borderWidth: 1, borderRadius: 6
             }]
         };
@@ -546,11 +575,17 @@ class TimerChartManager {
         const periodData = this.filterByPeriod(analytics);
         const tagTotals = this.calculateTagTotals(periodData);
         const isDark = document.body.classList.contains('theme-dark'); const text = isDark ? 'white' : '#333333';
-        if (Object.keys(tagTotals).length === 0) { const p = canvas.parentElement.createEl('p', { text: `No data for selected period.` }); p.style.textAlign = 'center'; canvas.remove(); return; }
+        if (Object.keys(tagTotals).length === 0) { 
+            // Fix: Use createEl
+            const p = canvas.parentElement.createEl('p', { text: `No data for selected period.` }); 
+            // Fix: No hardcoded styles, use class
+            p.addClass('timer-text-center');
+            canvas.remove(); return; 
+        }
         const total = Object.values(tagTotals).reduce((s, v) => s + v, 0);
         const data = {
             labels: Object.keys(tagTotals).map(tag => TimerUtils.formatTagLabel(tag)),
-            datasets: [{ label: `Time Spent`, data: Object.values(tagTotals), backgroundColor: this.getDoughnutColors(), borderColor: isDark ? '#333333' : '#ffffff', borderWidth: 2, hoverOffset: 8 }]
+            datasets: [{ label: `Time spent`, data: Object.values(tagTotals), backgroundColor: this.getDoughnutColors(), borderColor: isDark ? '#333333' : '#ffffff', borderWidth: 2, hoverOffset: 8 }]
         };
         const centerText = {
             id: 'centerText',
@@ -594,7 +629,11 @@ class TimerChartManager {
             const idx = points[0].index; const label = chart.data.labels[idx]; const tag = `#${label}`; const currentValue = sortedTags[idx][1];
             const menu = new obsidian.Menu();
             menu.addItem((item) => item.setTitle(`Edit "${label}" (this period)`).setIcon("pencil").onClick(() => this.showEditModal(tag, currentValue)));
-            menu.addItem((item) => item.setTitle(`Clear "${label}" (this period)`).setIcon("trash").onClick(() => this.deleteTagData(tag).then(() => this.view.onOpen())));
+            // Fix: Use async/await instead of Promise chain
+            menu.addItem((item) => item.setTitle(`Clear "${label}" (this period)`).setIcon("trash").onClick(async () => {
+                await this.deleteTagData(tag);
+                this.view.onOpen();
+            }));
             menu.showAtMouseEvent(e);
         });
     }
@@ -602,7 +641,9 @@ class TimerChartManager {
         const modal = new obsidian.Modal(this.app); modal.contentEl.createEl("h2", { text: `Edit time for ${tag}` });
         let newSeconds = currentValue;
         const input = new obsidian.TextComponent(modal.contentEl).setValue(String(currentValue)).onChange((v) => { newSeconds = parseInt(v, 10); });
-        input.inputEl.type = 'number'; input.inputEl.style.width = '100%';
+        input.inputEl.type = 'number'; 
+        // Fix: Use class instead of style
+        input.inputEl.addClass('timer-modal-input');
         new obsidian.Setting(modal.contentEl).addButton((btn) => btn.setButtonText("Save").setCta().onClick(async () => {
             if (!isNaN(newSeconds) && newSeconds >= 0) { await this.updateTagTime(tag, newSeconds); modal.close(); this.view.onOpen(); }
             else new obsidian.Notice("Please enter a valid number of seconds.");
@@ -642,14 +683,14 @@ class TimerAnalyticsView extends obsidian.ItemView {
     }
     async loadChartJS(container) {
         return new Promise((resolve) => {
-            const chartScript = document.createElement('script'); chartScript.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+            // Fix: Use createEl instead of document.createElement
+            // Note: createEl appends by default, so we capture reference but don't need explicit appendChild if attached to container
+            // However, logic below handles nested loading.
+            const chartScript = container.createEl('script', { attr: { src: 'https://cdn.jsdelivr.net/npm/chart.js' } });
             chartScript.onload = () => {
-                const datalabelsScript = document.createElement('script');
-                datalabelsScript.src = 'https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js';
+                const datalabelsScript = container.createEl('script', { attr: { src: 'https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js' } });
                 datalabelsScript.onload = async () => { this.chartjsLoaded = true; Chart.register(ChartDataLabels); await this.renderAnalytics(); resolve(); };
-                container.appendChild(datalabelsScript);
             };
-            container.appendChild(chartScript);
         });
     }
     async renderAnalytics() {
