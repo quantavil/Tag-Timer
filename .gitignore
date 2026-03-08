@@ -1,0 +1,9 @@
+node_modules/
+.idea/
+.vscode/
+npm-debug.log
+*.json
+!manifest.json
+!package.json
+!tsconfig.json
+!versions.json
