@@ -10,4 +10,5 @@ export interface TimerData {
 export interface TimerSettings {
     insertPosition: 'cursor' | 'head' | 'tail';
     lastActiveTime: number;
+    runningTimerFiles: string[];
 }

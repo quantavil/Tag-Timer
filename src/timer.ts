@@ -16,11 +16,16 @@ export function currentElapsed(data: TimerData): number {
 
 export function formatDuration(totalSeconds: number): string {
     const s = Math.floor(totalSeconds);
-    if (s < 60) return `${s}s`;
-    const m = Math.floor(s / 60), sec = s % 60;
-    if (m < 60) return sec > 0 ? `${m}m ${sec}s` : `${m}m`;
-    const h = Math.floor(m / 60), rm = m % 60;
-    return rm > 0 ? `${h}h ${rm}m` : `${h}h`;
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+
+    const pad = (n: number) => n.toString().padStart(2, '0');
+
+    if (h > 0) {
+        return `${pad(h)}:${pad(m)}:${pad(sec)}`;
+    }
+    return `${pad(m)}:${pad(sec)}`;
 }
 
 export function renderDisplay(data: TimerData): string {
