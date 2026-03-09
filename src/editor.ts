@@ -1,7 +1,7 @@
 import { Editor } from 'obsidian';
-import { TimerData, TimerState } from './types';
+import { TimerData, TimerKind, TimerState } from './types';
 
-export const TIMER_RE = /⏳\[([^|]+)\|(running|paused|stopped)\|(\d+)\|(\d+)\]/g;
+export const TIMER_RE = /⏳\[([^|\]]+)\|(?:(stopwatch|countdown)\|)?(running|paused|stopped)\|(\d+)\|(\d+)(?:\|(\d+))?\]/g;
 const LIST_RE = /^(\s*>?\s*(?:\d+\.\s|[-+*]\s|#+\s))/;
 
 export interface ParsedTimer extends TimerData {
@@ -13,18 +13,21 @@ export function parse(line: string): ParsedTimer | null {
     const re = new RegExp(TIMER_RE.source, 'g');
     const m = re.exec(line);
     if (!m) return null;
+
     return {
-        state: m[2] as TimerState,
         id: m[1],
-        elapsed: parseInt(m[3], 10),
-        startedAt: parseInt(m[4], 10),
+        kind: (m[2] as TimerKind) ?? 'stopwatch',
+        state: m[3] as TimerState,
+        elapsed: parseInt(m[4], 10),
+        startedAt: parseInt(m[5], 10),
+        duration: parseInt(m[6] ?? '0', 10),
         start: m.index,
         end: re.lastIndex,
     };
 }
 
 export function render(data: TimerData): string {
-    return `⏳[${data.id}|${data.state}|${data.elapsed}|${data.startedAt}]`;
+    return `⏳[${data.id}|${data.kind}|${data.state}|${data.elapsed}|${data.startedAt}|${data.duration}]`;
 }
 
 export function insertTimer(editor: Editor, line: number, span: string, position: 'cursor' | 'head' | 'tail'): void {

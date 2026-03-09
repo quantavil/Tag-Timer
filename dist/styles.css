@@ -1,4 +1,4 @@
-/* Timer badges */
+.timer-badge,
 .timer-running,
 .timer-paused,
 .timer-stopped {
@@ -10,7 +10,10 @@
     display: inline-block;
     user-select: none;
     cursor: pointer;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+    line-height: 1.3;
+    vertical-align: baseline;
+    white-space: nowrap;
 }
 
 .timer-running {
@@ -32,20 +35,40 @@
     border: 1px solid var(--background-modifier-border);
 }
 
+.timer-countdown {
+    letter-spacing: 0.02em;
+}
+
+.timer-countdown.timer-running {
+    color: var(--text-accent);
+    background: rgba(var(--color-blue-rgb), 0.15);
+    border: 1px solid rgba(var(--color-blue-rgb), 0.4);
+}
+
+.timer-badge:hover,
 .timer-running:hover,
 .timer-paused:hover,
 .timer-stopped:hover {
     transform: translateY(-1px);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-    filter: brightness(1.1);
+    filter: brightness(1.08);
 }
 
 @keyframes timer-pulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(var(--color-green-rgb), 0.4); }
-    50% { box-shadow: 0 0 0 6px rgba(var(--color-green-rgb), 0); }
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(var(--color-green-rgb), 0.4);
+    }
+    50% {
+        box-shadow: 0 0 0 6px rgba(var(--color-green-rgb), 0);
+    }
 }
 
-/* Accessibility */
 @media (prefers-reduced-motion: reduce) {
-    * { animation: none !important; transition: none !important; }
+    .timer-badge,
+    .timer-running,
+    .timer-paused,
+    .timer-stopped {
+        animation: none !important;
+        transition: none !important;
+    }
 }
