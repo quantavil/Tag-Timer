@@ -1,4 +1,6 @@
-![Tag Timer Banner](assets/banner.png)
+<p align="center">
+  <img src="assets/banner.png" alt="Tag Timer Banner">
+</p>
 
 # Tag Timer
 
@@ -8,17 +10,17 @@ This version is a complete redesign focused on **efficiency**, **zero dependenci
 
 ## Features
 
-- ⚡ **Lightning Fast Interaction:**
+- **Lightning Fast Interaction:**
   - `Alt+S`: Toggle Timer (Start / Pause / Resume)
   - `Alt+C`: Toggle Countdown (Start / Pause / Resume)
   - `Alt+D`: Delete Timer
-- 🎯 **Countdowns & Stopwatches:** Choose between simple stopwatches or goal-oriented countdowns.
-- 🖱️ **Clickable Widgets:** Interactive badges in both **Live Preview** and **Reading View**. Simple click to toggle, right-click for the context menu.
-- 🛠️ **Rich Context Menu:** Right-click any timer to access Stop, Reset, Delete, or even **Change Time** manually.
-- 🛡️ **Auto-Restore & Crash Protection:** Running timers are automatically paused upon plugin unload and recovered when restarted. Safe across devices and through app crashes.
-- 📏 **One Timer Per Line:** Enforces a clean layout by preventing multiple timers on the same line.
-- 🎨 **Native Integration:** Uses Obsidian's internal CSS variables to perfectly adapt to your theme (Light/Dark).
-- 📦 **Zero External Dependencies:** Built with pure TypeScript and CodeMirror 6 for maximum stability and speed.
+- **Countdowns & Stopwatches:** Choose between simple stopwatches or goal-oriented countdowns.
+- **Clickable Widgets:** Interactive badges in both **Live Preview** and **Reading View**. Simple click to toggle, right-click for the context menu.
+- **Rich Context Menu:** Right-click any timer to access Stop, Reset, Delete, or even **Change Time** manually.
+- **Auto-Restore & Crash Protection:** Running timers are automatically paused upon plugin unload and recovered when restarted. Safe across devices and through app crashes.
+- **One Timer Per Line:** Enforces a clean layout by preventing multiple timers on the same line.
+- **Native Integration:** Uses Obsidian's internal CSS variables to perfectly adapt to your theme (Light/Dark).
+- **Zero External Dependencies:** Built with pure TypeScript and CodeMirror 6 for maximum stability and speed.
 
 ## Usage
 
