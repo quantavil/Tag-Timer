@@ -1,9 +1,6 @@
 import { TimerData } from './types';
 
 const BASE62 = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-const TICK_MS = 1000;
-const MAX_GAP_SEC = 60;
-const MAX_STEP_SEC = 5;
 
 export function generateId(): string {
     let t = Date.now(), res = '';
@@ -17,9 +14,7 @@ export function nowSec(): number {
 
 export function currentElapsed(data: TimerData): number {
     if (data.state !== 'running') return data.elapsed;
-    const gap = Math.max(0, nowSec() - data.startedAt);
-    if (gap > MAX_GAP_SEC) return data.elapsed;
-    return data.elapsed + Math.min(gap, MAX_STEP_SEC);
+    return data.elapsed + Math.max(0, nowSec() - data.startedAt);
 }
 
 export function formatDuration(totalSeconds: number): string {
@@ -31,25 +26,8 @@ export function formatDuration(totalSeconds: number): string {
     return rm > 0 ? `${h}h ${rm}m` : `${h}h`;
 }
 
-type TickCallback = (id: string) => void;
-
-const intervals = new Map<string, number>();
-
-export function startInterval(id: string, onTick: TickCallback): void {
-    if (intervals.has(id)) return;
-    const handle = window.setInterval(() => onTick(id), TICK_MS);
-    intervals.set(id, handle);
-}
-
-export function stopInterval(id: string): void {
-    const handle = intervals.get(id);
-    if (handle !== undefined) {
-        window.clearInterval(handle);
-        intervals.delete(id);
-    }
-}
-
-export function stopAllIntervals(): void {
-    for (const handle of intervals.values()) window.clearInterval(handle);
-    intervals.clear();
+export function renderDisplay(data: TimerData): string {
+    const cur = currentElapsed(data);
+    const icon = data.state === 'running' ? (cur % 2 === 0 ? '⌛' : '⏳') : '⏳';
+    return `${icon} ${formatDuration(cur)}`;
 }

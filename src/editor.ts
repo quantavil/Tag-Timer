@@ -1,8 +1,7 @@
 import { Editor } from 'obsidian';
-import { TimerData } from './types';
-import { formatDuration } from './timer';
+import { TimerData, TimerState } from './types';
 
-const TIMER_RE = /<span class="(timer-running|timer-paused)" id="([^"]+)" data-elapsed="(\d+)" data-started-at="(\d+)">[^<]*<\/span>/g;
+export const TIMER_RE = /⏳\[([^|]+)\|(running|paused)\|(\d+)\|(\d+)\]/g;
 const LIST_RE = /^(\s*>?\s*(?:\d+\.\s|[-+*]\s|#+\s))/;
 
 export interface ParsedTimer extends TimerData {
@@ -15,8 +14,8 @@ export function parse(line: string): ParsedTimer | null {
     const m = re.exec(line);
     if (!m) return null;
     return {
-        state: m[1] === 'timer-running' ? 'running' : 'paused',
-        id: m[2],
+        state: m[2] as TimerState,
+        id: m[1],
         elapsed: parseInt(m[3], 10),
         startedAt: parseInt(m[4], 10),
         start: m.index,
@@ -25,9 +24,7 @@ export function parse(line: string): ParsedTimer | null {
 }
 
 export function render(data: TimerData): string {
-    const icon = data.state === 'running' ? (data.elapsed % 2 === 0 ? '⌛' : '⏳') : '⏳';
-    const time = formatDuration(data.elapsed);
-    return `<span class="timer-${data.state}" id="${data.id}" data-elapsed="${data.elapsed}" data-started-at="${data.startedAt}">${icon} ${time}</span>`;
+    return `⏳[${data.id}|${data.state}|${data.elapsed}|${data.startedAt}]`;
 }
 
 export function insertTimer(editor: Editor, line: number, span: string, position: 'cursor' | 'head' | 'tail'): void {
@@ -50,7 +47,6 @@ export function replaceTimer(editor: Editor, line: number, span: string, start: 
 }
 
 export function removeTimer(editor: Editor, line: number, start: number, end: number): void {
-    // Also remove a leading or trailing space around the span
     const lineText = editor.getLine(line);
     const removeStart = (start > 0 && lineText[start - 1] === ' ') ? start - 1 : start;
     const removeEnd = (end < lineText.length && lineText[end] === ' ') ? end + 1 : end;
