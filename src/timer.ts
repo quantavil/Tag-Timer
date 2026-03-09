@@ -35,20 +35,10 @@ export function pauseData(data: TimerData, ref = nowSec()): TimerData {
     const elapsed = currentElapsed(data, ref);
 
     if (data.kind === 'countdown' && elapsed >= data.duration) {
-        return {
-            ...data,
-            state: 'stopped',
-            elapsed: data.duration,
-            startedAt: ref,
-        };
+        return { ...data, state: 'stopped', elapsed: data.duration, startedAt: ref };
     }
 
-    return {
-        ...data,
-        state: 'paused',
-        elapsed,
-        startedAt: ref,
-    };
+    return { ...data, state: 'paused', elapsed, startedAt: ref };
 }
 
 export function resumeData(data: TimerData, ref = nowSec()): TimerData {
@@ -63,21 +53,11 @@ export function resumeData(data: TimerData, ref = nowSec()): TimerData {
 }
 
 export function stopData(data: TimerData, ref = nowSec()): TimerData {
-    return {
-        ...data,
-        state: 'stopped',
-        elapsed: currentElapsed(data, ref),
-        startedAt: ref,
-    };
+    return { ...data, state: 'stopped', elapsed: currentElapsed(data, ref), startedAt: ref };
 }
 
 export function resetData(data: TimerData, ref = nowSec()): TimerData {
-    return {
-        ...data,
-        state: 'paused',
-        elapsed: 0,
-        startedAt: ref,
-    };
+    return { ...data, state: 'paused', elapsed: 0, startedAt: ref };
 }
 
 export function setDisplayedSeconds(data: TimerData, seconds: number, ref = nowSec()): TimerData {
@@ -106,35 +86,28 @@ export function formatDuration(totalSeconds: number): string {
     const h = Math.floor(s / 3600);
     const m = Math.floor((s % 3600) / 60);
     const sec = s % 60;
-
     const pad = (n: number) => n.toString().padStart(2, '0');
 
-    if (h > 0) {
-        return `${pad(h)}:${pad(m)}:${pad(sec)}`;
-    }
-
-    return `${pad(m)}:${pad(sec)}`;
+    return h > 0 ? `${pad(h)}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`;
 }
 
 export function parseDurationInput(raw: string): number | null {
     const value = raw.trim();
     if (!value) return null;
 
-    if (/^\d+$/.test(value)) {
-        return parseInt(value, 10) * 60;
-    }
+    if (/^\d+$/.test(value)) return parseInt(value, 10) * 60;
 
-    const parts = value.split(':').map((part) => part.trim());
-    if (!parts.every((part) => /^\d+$/.test(part))) return null;
+    const parts = value.split(':').map((p) => p.trim());
+    if (!parts.every((p) => /^\d+$/.test(p))) return null;
 
     if (parts.length === 2) {
-        const [m, s] = parts.map((part) => parseInt(part, 10));
+        const [m, s] = parts.map((p) => parseInt(p, 10));
         if (s > 59) return null;
         return m * 60 + s;
     }
 
     if (parts.length === 3) {
-        const [h, m, s] = parts.map((part) => parseInt(part, 10));
+        const [h, m, s] = parts.map((p) => parseInt(p, 10));
         if (m > 59 || s > 59) return null;
         return h * 3600 + m * 60 + s;
     }
@@ -142,51 +115,21 @@ export function parseDurationInput(raw: string): number | null {
     return null;
 }
 
-export function extractTimerData(m: RegExpExecArray | string[]): TimerData {
-    return {
-        id: m[1],
-        kind: (m[2] as TimerData['kind']) ?? 'stopwatch',
-        state: m[3] as TimerData['state'],
-        elapsed: parseInt(m[4], 10),
-        startedAt: parseInt(m[5], 10),
-        duration: parseInt(m[6] ?? '0', 10),
-    };
-}
-
+/** Both stopwatch and countdown use ⏳/⌛ when running */
 export function renderDisplay(data: TimerData): string {
     const shown = data.kind === 'countdown'
         ? currentRemaining(data)
         : currentElapsed(data);
 
-    let icon = data.kind === 'countdown' ? '⏲️' : '⏱️';
+    let icon: string;
 
     if (data.state === 'running') {
-        icon = shown % 2 === 0
-            ? (data.kind === 'countdown' ? '⏲️' : '⌛')
-            : '⏳';
+        icon = shown % 2 === 0 ? '⌛' : '⏳';
     } else if (data.state === 'stopped') {
         icon = '⏹️';
+    } else {
+        icon = '⏳';
     }
 
     return `${icon} ${formatDuration(shown)}`;
-}
-
-export function promptForTimeChange(data: TimerData): TimerData | null {
-    const shown = data.kind === 'countdown' ? currentRemaining(data) : currentElapsed(data);
-    
-    // Defer the prompt slightly so the context menu has time to close
-    // and stop propagation doesn't swallow the prompt.
-    const raw = window.prompt(
-        'Set time. Use mm:ss, hh:mm:ss, or a whole number for minutes.',
-        formatDuration(shown)
-    );
-
-    if (raw === null) return null;
-
-    const secs = parseDurationInput(raw);
-    if (secs === null) {
-        throw new Error('Invalid time');
-    }
-
-    return setDisplayedSeconds(data, secs, nowSec());
 }

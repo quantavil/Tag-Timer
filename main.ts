@@ -10,26 +10,33 @@ import {
     MarkdownRenderChild,
     TFile,
 } from 'obsidian';
-import { TimerData, TimerSettings, TimerState, TimerKind } from './src/types';
+import { TimerData, TimerSettings, TimerKind } from './src/types';
 import {
     generateId,
     nowSec,
-    currentElapsed,
     currentRemaining,
     renderDisplay,
     pauseData,
     resumeData,
     stopData,
     resetData,
-    setDisplayedSeconds,
-    parseDurationInput,
     formatDuration,
+    parseDurationInput,
     TIMER_MUTATED_EVENT,
-    extractTimerData,
-    promptForTimeChange,
 } from './src/timer';
-import { parse, render, insertTimer, replaceTimer, removeTimer, TIMER_RE } from './src/editor';
-import { timerViewPlugin } from './src/widget';
+import {
+    parse,
+    render,
+    insertTimer,
+    replaceTimer,
+    removeTimer,
+    extractTimerData,
+    computeRemovalRange,
+    TIMER_RE,
+} from './src/editor';
+import { timerViewPlugin, setWidgetApp } from './src/widget';
+import { addTimerMenuItems } from './src/menu';
+import { openTimeModal } from './src/timeModal';
 
 const DEFAULT_SETTINGS: TimerSettings = {
     insertPosition: 'tail',
@@ -59,13 +66,8 @@ function updateTimerInContent(
             const end = start + m[0].length;
 
             if (next === null) {
-                const hasSpaceBefore = start > 0 && line[start - 1] === ' ';
-                const hasSpaceAfter = end < line.length && line[end] === ' ';
-
-                const removeStart = hasSpaceBefore ? start - 1 : start;
-                const removeEnd = (hasSpaceAfter && !hasSpaceBefore) ? end + 1 : end;
-
-                lines[i] = line.slice(0, removeStart) + line.slice(removeEnd);
+                const r = computeRemovalRange(line, start, end);
+                lines[i] = line.slice(0, r.from) + line.slice(r.to);
             } else {
                 lines[i] = line.slice(0, start) + render(next) + line.slice(end);
             }
@@ -77,7 +79,7 @@ function updateTimerInContent(
     return content;
 }
 
-/* ── Reading-view widget ─────────────────────────────────────────── */
+/* ── Reading‑view widget ─────────────────────────────────────────── */
 
 class TimerRenderChild extends MarkdownRenderChild {
     interval: number | null = null;
@@ -105,13 +107,13 @@ class TimerRenderChild extends MarkdownRenderChild {
 
     private refresh() {
         if (
-            !this.finishing
-            && this.data.kind === 'countdown'
-            && this.data.state === 'running'
-            && currentRemaining(this.data) === 0
+            !this.finishing &&
+            this.data.kind === 'countdown' &&
+            this.data.state === 'running' &&
+            currentRemaining(this.data) === 0
         ) {
             this.finishing = true;
-            void this.mutate((data) => stopData(data, nowSec())).finally(() => {
+            void this.mutate((d) => stopData(d, nowSec())).finally(() => {
                 this.finishing = false;
             });
             return;
@@ -136,7 +138,7 @@ class TimerRenderChild extends MarkdownRenderChild {
                 }),
             );
         } catch (error) {
-            console.error('Timer: failed to update reading-view timer', error);
+            console.error('Timer: failed to update reading‑view timer', error);
             new Notice('Failed to update timer.');
             return;
         }
@@ -158,49 +160,15 @@ class TimerRenderChild extends MarkdownRenderChild {
     private openMenu(event: MouseEvent) {
         const menu = new Menu();
 
-        if (this.data.state === 'running') {
-            menu.addItem((item) =>
-                item.setTitle('Pause')
-                    .setIcon('pause')
-                    .onClick(() => void this.mutate((data) => pauseData(data, nowSec()))));
-        } else {
-            menu.addItem((item) =>
-                item.setTitle(this.data.state === 'stopped' ? 'Start' : 'Resume')
-                    .setIcon('play')
-                    .onClick(() => void this.mutate((data) => resumeData(data, nowSec()))));
-        }
-
-        menu.addItem((item) =>
-            item.setTitle('Stop')
-                .setIcon('square')
-                .onClick(() => void this.mutate((data) => stopData(data, nowSec()))));
-
-        menu.addItem((item) =>
-            item.setTitle('Reset')
-                .setIcon('refresh-cw')
-                .onClick(() => void this.mutate((data) => resetData(data, nowSec()))));
-
-        menu.addItem((item) =>
-            item.setTitle('Change time')
-                .setIcon('clock')
-                .onClick(() => {
-                    const currentData = this.data;
-                    const mutateFn = this.mutate.bind(this);
-                    
-                    setTimeout(() => {
-                        try {
-                            const next = promptForTimeChange(currentData);
-                            if (next) void mutateFn(() => next);
-                        } catch {
-                            new Notice('Invalid time.');
-                        }
-                    }, 50);
-                }));
-
-        menu.addItem((item) =>
-            item.setTitle('Delete')
-                .setIcon('trash')
-                .onClick(() => void this.mutate(() => null)));
+        addTimerMenuItems(menu, this.data, {
+            replace: (next) => void this.mutate(() => next),
+            changeTime: () => {
+                openTimeModal(this.app, this.data, (next) => {
+                    void this.mutate(() => next);
+                });
+            },
+            remove: () => void this.mutate(() => null),
+        });
 
         menu.showAtMouseEvent(event);
     }
@@ -239,6 +207,7 @@ export default class TimerPlugin extends Plugin {
 
     async onload() {
         await this.loadSettings();
+        setWidgetApp(this.app);
         this.registerEditorExtension(timerViewPlugin);
 
         await this.recoverRunningTimers();
@@ -363,39 +332,45 @@ export default class TimerPlugin extends Plugin {
             id: 'toggle-timer',
             name: 'Toggle timer',
             hotkeys: [{ modifiers: ['Alt'], key: 's' }],
-            editorCallback: (e, v) => this.handleCommand(e, v as MarkdownView, 'toggle', 'stopwatch'),
+            editorCallback: (e, v) =>
+                this.handleCommand(e, v as MarkdownView, 'toggle', 'stopwatch'),
         });
 
         this.addCommand({
             id: 'toggle-countdown',
             name: 'Start/pause countdown',
             hotkeys: [{ modifiers: ['Alt'], key: 'c' }],
-            editorCallback: (e, v) => this.handleCommand(e, v as MarkdownView, 'toggle', 'countdown'),
+            editorCallback: (e, v) =>
+                this.handleCommand(e, v as MarkdownView, 'toggle', 'countdown'),
         });
 
         this.addCommand({
             id: 'stop-timer',
             name: 'Stop timer',
-            editorCallback: (e, v) => this.handleCommand(e, v as MarkdownView, 'stop'),
+            editorCallback: (e, v) =>
+                this.handleCommand(e, v as MarkdownView, 'stop'),
         });
 
         this.addCommand({
             id: 'reset-timer',
             name: 'Reset timer',
-            editorCallback: (e, v) => this.handleCommand(e, v as MarkdownView, 'reset'),
+            editorCallback: (e, v) =>
+                this.handleCommand(e, v as MarkdownView, 'reset'),
         });
 
         this.addCommand({
             id: 'change-timer-time',
             name: 'Change timer/countdown time',
-            editorCallback: (e, v) => this.handleCommand(e, v as MarkdownView, 'change'),
+            editorCallback: (e, v) =>
+                this.handleCommand(e, v as MarkdownView, 'change'),
         });
 
         this.addCommand({
             id: 'delete-timer',
             name: 'Delete timer',
             hotkeys: [{ modifiers: ['Alt'], key: 'd' }],
-            editorCallback: (e, v) => this.handleCommand(e, v as MarkdownView, 'delete'),
+            editorCallback: (e, v) =>
+                this.handleCommand(e, v as MarkdownView, 'delete'),
         });
 
         this.registerEvent(
@@ -423,9 +398,7 @@ export default class TimerPlugin extends Plugin {
         await this.saveAllRunningTimers();
     }
 
-    /* ═══════════════════════════════════════════════════════════════
-     *  Registry helpers
-     * ═══════════════════════════════════════════════════════════════ */
+    /* ═══ Registry helpers ═══ */
 
     private trackFile(path: string) {
         if (!this.settings.runningTimerFiles.includes(path)) {
@@ -504,15 +477,14 @@ export default class TimerPlugin extends Plugin {
         void this.saveSettings();
     }
 
-    /* ═══════════════════════════════════════════════════════════════
-     *  Crash / unclean-exit recovery
-     * ═══════════════════════════════════════════════════════════════ */
+    /* ═══ Recovery ═══ */
 
     private async recoverRunningTimers() {
         const tracked = [...(this.settings.runningTimerFiles ?? [])];
         if (tracked.length === 0) return;
 
-        const ref = this.settings.lastActiveTime > 0 ? this.settings.lastActiveTime : nowSec();
+        const ref =
+            this.settings.lastActiveTime > 0 ? this.settings.lastActiveTime : nowSec();
         const counter = { count: 0 };
 
         for (const path of tracked) {
@@ -520,7 +492,9 @@ export default class TimerPlugin extends Plugin {
             if (!(file instanceof TFile)) continue;
 
             try {
-                await this.app.vault.process(file, (content) => this.pauseTimersInContent(content, ref, counter));
+                await this.app.vault.process(file, (content) =>
+                    this.pauseTimersInContent(content, ref, counter),
+                );
             } catch (error) {
                 console.error(`Timer: recovery failed for ${path}`, error);
             }
@@ -531,20 +505,24 @@ export default class TimerPlugin extends Plugin {
         await this.saveSettings();
 
         if (counter.count > 0) {
-            new Notice(`Recovered ${counter.count} running timer(s) from previous session.`);
+            new Notice(
+                `Recovered ${counter.count} running timer(s) from previous session.`,
+            );
         }
     }
 
-    /* ═══════════════════════════════════════════════════════════════
-     *  Save / pause helpers
-     * ═══════════════════════════════════════════════════════════════ */
+    /* ═══ Save / pause ═══ */
 
-    private pauseTimersInContent(content: string, refTime: number, counter?: { count: number }): string {
+    private pauseTimersInContent(
+        content: string,
+        refTime: number,
+        counter?: { count: number },
+    ): string {
         return content.replace(
             new RegExp(TIMER_RE.source, 'g'),
-            (...matchArgs) => {
-                const data = extractTimerData(matchArgs as unknown as RegExpExecArray);
-                if (data.state !== 'running') return matchArgs[0];
+            (...args) => {
+                const data = extractTimerData(args as unknown as RegExpExecArray);
+                if (data.state !== 'running') return args[0];
                 if (counter) counter.count++;
                 return render(pauseData(data, refTime));
             },
@@ -564,13 +542,7 @@ export default class TimerPlugin extends Plugin {
                 const p = parse(editor.getLine(i));
                 if (p?.state !== 'running') continue;
 
-                replaceTimer(
-                    editor,
-                    i,
-                    render(pauseData(p, ref)),
-                    p.start,
-                    p.end,
-                );
+                replaceTimer(editor, i, render(pauseData(p, ref)), p.start, p.end);
             }
         });
 
@@ -586,7 +558,9 @@ export default class TimerPlugin extends Plugin {
             if (!(file instanceof TFile)) continue;
 
             try {
-                await this.app.vault.process(file, (content) => this.pauseTimersInContent(content, ref));
+                await this.app.vault.process(file, (content) =>
+                    this.pauseTimersInContent(content, ref),
+                );
             } catch (error) {
                 console.error(`Timer: save failed for ${path}`, error);
             }
@@ -597,9 +571,7 @@ export default class TimerPlugin extends Plugin {
         await this.saveSettings();
     }
 
-    /* ═══════════════════════════════════════════════════════════════
-     *  Core command handler
-     * ═══════════════════════════════════════════════════════════════ */
+    /* ═══ Command handler ═══ */
 
     handleCommand(
         editor: Editor,
@@ -623,7 +595,8 @@ export default class TimerPlugin extends Plugin {
 
             const defaultCountdown = Math.max(
                 1,
-                this.settings.defaultCountdownSeconds || DEFAULT_SETTINGS.defaultCountdownSeconds,
+                this.settings.defaultCountdownSeconds ||
+                    DEFAULT_SETTINGS.defaultCountdownSeconds,
             );
 
             const data: TimerData = {
@@ -648,17 +621,16 @@ export default class TimerPlugin extends Plugin {
         }
 
         if (action === 'change') {
-            setTimeout(() => {
-                try {
-                    const next = promptForTimeChange(parsed);
-                    if (next) {
-                        replaceTimer(editor, line, render(next), parsed.start, parsed.end);
-                        this.refreshRegistryForEditor(editor, view);
-                    }
-                } catch {
-                    new Notice('Invalid time.');
+            openTimeModal(this.app, parsed, (next) => {
+                // Re‑parse so positions are fresh after the modal closes
+                const fresh = parse(editor.getLine(line));
+                if (!fresh || fresh.id !== parsed.id) {
+                    new Notice('Timer moved or deleted.');
+                    return;
                 }
-            }, 50);
+                replaceTimer(editor, line, render(next), fresh.start, fresh.end);
+                this.refreshRegistryForEditor(editor, view);
+            });
             return;
         }
 
@@ -678,9 +650,7 @@ export default class TimerPlugin extends Plugin {
         this.refreshRegistryForEditor(editor, view);
     }
 
-    /* ═══════════════════════════════════════════════════════════════
-     *  Context menu
-     * ═══════════════════════════════════════════════════════════════ */
+    /* ═══ Context menu ═══ */
 
     buildContextMenu(menu: Menu, editor: Editor, view: MarkdownView) {
         const line = editor.getCursor().line;
@@ -690,52 +660,47 @@ export default class TimerPlugin extends Plugin {
             menu.addItem((item) =>
                 item.setTitle('Start timer')
                     .setIcon('play')
-                    .onClick(() => this.handleCommand(editor, view, 'toggle', 'stopwatch')));
+                    .onClick(() =>
+                        this.handleCommand(editor, view, 'toggle', 'stopwatch'),
+                    ),
+            );
 
             menu.addItem((item) =>
                 item.setTitle('Start countdown')
                     .setIcon('timer')
-                    .onClick(() => this.handleCommand(editor, view, 'toggle', 'countdown')));
+                    .onClick(() =>
+                        this.handleCommand(editor, view, 'toggle', 'countdown'),
+                    ),
+            );
 
             return;
         }
 
-        if (parsed.state === 'running') {
-            menu.addItem((item) =>
-                item.setTitle('Pause')
-                    .setIcon('pause')
-                    .onClick(() => this.handleCommand(editor, view, 'toggle')));
-        } else {
-            menu.addItem((item) =>
-                item.setTitle(parsed.state === 'stopped' ? 'Start' : 'Resume')
-                    .setIcon('play')
-                    .onClick(() => this.handleCommand(editor, view, 'toggle')));
-        }
-
-        menu.addItem((item) =>
-            item.setTitle('Stop')
-                .setIcon('square')
-                .onClick(() => this.handleCommand(editor, view, 'stop')));
-
-        menu.addItem((item) =>
-            item.setTitle('Reset')
-                .setIcon('refresh-cw')
-                .onClick(() => this.handleCommand(editor, view, 'reset')));
-
-        menu.addItem((item) =>
-            item.setTitle('Change time')
-                .setIcon('clock')
-                .onClick(() => this.handleCommand(editor, view, 'change')));
-
-        menu.addItem((item) =>
-            item.setTitle('Delete')
-                .setIcon('trash')
-                .onClick(() => this.handleCommand(editor, view, 'delete')));
+        addTimerMenuItems(menu, parsed, {
+            replace: (next) => {
+                replaceTimer(editor, line, render(next), parsed.start, parsed.end);
+                this.refreshRegistryForEditor(editor, view);
+            },
+            changeTime: () => {
+                openTimeModal(this.app, parsed, (next) => {
+                    const fresh = parse(editor.getLine(line));
+                    if (!fresh || fresh.id !== parsed.id) {
+                        new Notice('Timer moved or deleted.');
+                        return;
+                    }
+                    replaceTimer(editor, line, render(next), fresh.start, fresh.end);
+                    this.refreshRegistryForEditor(editor, view);
+                });
+            },
+            remove: () => {
+                removeTimer(editor, line, parsed.start, parsed.end);
+                new Notice('Timer deleted');
+                this.refreshRegistryForEditor(editor, view);
+            },
+        });
     }
 
-    /* ═══════════════════════════════════════════════════════════════
-     *  Settings
-     * ═══════════════════════════════════════════════════════════════ */
+    /* ═══ Settings ═══ */
 
     async loadSettings() {
         this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
@@ -772,23 +737,32 @@ class TimerSettingTab extends PluginSettingTab {
                     .addOption('cursor', 'At cursor')
                     .setValue(this.plugin.settings.insertPosition)
                     .onChange(async (v) => {
-                        this.plugin.settings.insertPosition = v as TimerSettings['insertPosition'];
+                        this.plugin.settings.insertPosition =
+                            v as TimerSettings['insertPosition'];
                         await this.plugin.saveSettings();
                     }),
             );
 
         new Setting(containerEl)
             .setName('Default countdown')
-            .setDesc('Used by Alt+C. Use mm:ss, hh:mm:ss, or a whole number for minutes.')
+            .setDesc(
+                'Used by Alt+C. Use mm:ss, hh:mm:ss, or a whole number for minutes.',
+            )
             .addText((text) => {
                 text.setPlaceholder('25:00');
-                text.setValue(formatDuration(this.plugin.settings.defaultCountdownSeconds));
+                text.setValue(
+                    formatDuration(this.plugin.settings.defaultCountdownSeconds),
+                );
 
                 const save = async () => {
                     const secs = parseDurationInput(text.inputEl.value);
                     if (secs === null || secs <= 0) {
                         new Notice('Invalid countdown.');
-                        text.setValue(formatDuration(this.plugin.settings.defaultCountdownSeconds));
+                        text.setValue(
+                            formatDuration(
+                                this.plugin.settings.defaultCountdownSeconds,
+                            ),
+                        );
                         return;
                     }
 
@@ -797,10 +771,7 @@ class TimerSettingTab extends PluginSettingTab {
                     text.setValue(formatDuration(secs));
                 };
 
-                text.inputEl.addEventListener('blur', () => {
-                    void save();
-                });
-
+                text.inputEl.addEventListener('blur', () => void save());
                 text.inputEl.addEventListener('keydown', (evt) => {
                     if (evt.key === 'Enter') {
                         evt.preventDefault();

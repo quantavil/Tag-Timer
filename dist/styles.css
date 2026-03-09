@@ -1,7 +1,6 @@
-.timer-badge,
-.timer-running,
-.timer-paused,
-.timer-stopped {
+/* ── Base badge ──────────────────────────────────────────────────── */
+
+.timer-badge {
     font-family: var(--font-monospace);
     font-weight: 700;
     font-size: 0.85em;
@@ -16,58 +15,74 @@
     white-space: nowrap;
 }
 
-.timer-running {
+/* ── Running ─────────────────────────────────────────────────────── */
+
+.timer-badge.timer-running {
     color: var(--text-success);
     background: rgba(var(--color-green-rgb), 0.15);
     border: 1px solid rgba(var(--color-green-rgb), 0.4);
-    animation: timer-pulse 2s infinite;
+    --glow-rgb: var(--color-green-rgb);
+    animation: timer-breathe 3s ease-in-out infinite;
 }
 
-.timer-paused {
+/* Countdown overrides colour while keeping the same animation */
+.timer-badge.timer-countdown.timer-running {
+    color: var(--text-accent);
+    background: rgba(var(--color-blue-rgb), 0.15);
+    border: 1px solid rgba(var(--color-blue-rgb), 0.4);
+    --glow-rgb: var(--color-blue-rgb);
+}
+
+/* ── Paused ──────────────────────────────────────────────────────── */
+
+.timer-badge.timer-paused {
     color: var(--text-warning);
     background: rgba(var(--color-orange-rgb), 0.15);
     border: 1px solid rgba(var(--color-orange-rgb), 0.4);
 }
 
-.timer-stopped {
+/* ── Stopped ─────────────────────────────────────────────────────── */
+
+.timer-badge.timer-stopped {
     color: var(--text-muted);
     background: var(--background-modifier-active-hover);
     border: 1px solid var(--background-modifier-border);
 }
 
-.timer-countdown {
+/* ── Countdown spacing ───────────────────────────────────────────── */
+
+.timer-badge.timer-countdown {
     letter-spacing: 0.02em;
 }
 
-.timer-countdown.timer-running {
-    color: var(--text-accent);
-    background: rgba(var(--color-blue-rgb), 0.15);
-    border: 1px solid rgba(var(--color-blue-rgb), 0.4);
-}
+/* ── Hover ────────────────────────────────────────────────────────── */
 
-.timer-badge:hover,
-.timer-running:hover,
-.timer-paused:hover,
-.timer-stopped:hover {
+.timer-badge:hover {
     transform: translateY(-1px);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     filter: brightness(1.08);
 }
 
-@keyframes timer-pulse {
+/* Pause glow animation while hovering so the hover shadow wins */
+.timer-badge.timer-running:hover {
+    animation: none;
+}
+
+/* ── Smooth breathing glow ───────────────────────────────────────── */
+
+@keyframes timer-breathe {
     0%, 100% {
-        box-shadow: 0 0 0 0 rgba(var(--color-green-rgb), 0.4);
+        box-shadow: 0 0 4px 0 rgba(var(--glow-rgb), 0.1);
     }
     50% {
-        box-shadow: 0 0 0 6px rgba(var(--color-green-rgb), 0);
+        box-shadow: 0 0 14px 3px rgba(var(--glow-rgb), 0.25);
     }
 }
 
+/* ── Accessibility ───────────────────────────────────────────────── */
+
 @media (prefers-reduced-motion: reduce) {
-    .timer-badge,
-    .timer-running,
-    .timer-paused,
-    .timer-stopped {
+    .timer-badge {
         animation: none !important;
         transition: none !important;
     }
