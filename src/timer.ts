@@ -142,6 +142,17 @@ export function parseDurationInput(raw: string): number | null {
     return null;
 }
 
+export function extractTimerData(m: RegExpExecArray | string[]): TimerData {
+    return {
+        id: m[1],
+        kind: (m[2] as TimerData['kind']) ?? 'stopwatch',
+        state: m[3] as TimerData['state'],
+        elapsed: parseInt(m[4], 10),
+        startedAt: parseInt(m[5], 10),
+        duration: parseInt(m[6] ?? '0', 10),
+    };
+}
+
 export function renderDisplay(data: TimerData): string {
     const shown = data.kind === 'countdown'
         ? currentRemaining(data)
@@ -158,4 +169,24 @@ export function renderDisplay(data: TimerData): string {
     }
 
     return `${icon} ${formatDuration(shown)}`;
+}
+
+export function promptForTimeChange(data: TimerData): TimerData | null {
+    const shown = data.kind === 'countdown' ? currentRemaining(data) : currentElapsed(data);
+    
+    // Defer the prompt slightly so the context menu has time to close
+    // and stop propagation doesn't swallow the prompt.
+    const raw = window.prompt(
+        'Set time. Use mm:ss, hh:mm:ss, or a whole number for minutes.',
+        formatDuration(shown)
+    );
+
+    if (raw === null) return null;
+
+    const secs = parseDurationInput(raw);
+    if (secs === null) {
+        throw new Error('Invalid time');
+    }
+
+    return setDisplayedSeconds(data, secs, nowSec());
 }

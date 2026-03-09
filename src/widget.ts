@@ -22,6 +22,8 @@ import {
     parseDurationInput,
     formatDuration,
     TIMER_MUTATED_EVENT,
+    extractTimerData,
+    promptForTimeChange,
 } from './timer';
 import { TIMER_RE, render } from './editor';
 
@@ -62,13 +64,11 @@ function removeLocatedTimer(view: EditorView, range: LocatedTimer) {
     const localFrom = range.from - line.from;
     const localTo = range.to - line.from;
 
-    const from = localFrom > 0 && line.text[localFrom - 1] === ' '
-        ? range.from - 1
-        : range.from;
+    const hasSpaceBefore = localFrom > 0 && line.text[localFrom - 1] === ' ';
+    const hasSpaceAfter = localTo < line.text.length && line.text[localTo] === ' ';
 
-    const to = localTo < line.text.length && line.text[localTo] === ' '
-        ? range.to + 1
-        : range.to;
+    const from = hasSpaceBefore ? range.from - 1 : range.from;
+    const to = (hasSpaceAfter && !hasSpaceBefore) ? range.to + 1 : range.to;
 
     view.dispatch({
         changes: { from, to, insert: '' },
@@ -151,24 +151,15 @@ class TimerWidget extends WidgetType {
                 item.setTitle('Change time')
                     .setIcon('clock')
                     .onClick(() => {
-                        const shown = this.data.kind === 'countdown'
-                            ? currentRemaining(this.data)
-                            : currentElapsed(this.data);
-
-                        const raw = window.prompt(
-                            'Set time. Use mm:ss, hh:mm:ss, or a whole number for minutes.',
-                            formatDuration(shown),
-                        );
-
-                        if (raw === null) return;
-
-                        const secs = parseDurationInput(raw);
-                        if (secs === null) {
-                            new Notice('Invalid time.');
-                            return;
-                        }
-
-                        replaceLocatedTimer(view, range, setDisplayedSeconds(this.data, secs, nowSec()));
+                        const currentData = this.data;
+                        setTimeout(() => {
+                            try {
+                                const next = promptForTimeChange(currentData);
+                                if (next) replaceLocatedTimer(view, range, next);
+                            } catch {
+                                new Notice('Invalid time.');
+                            }
+                        }, 50);
                     }));
 
             menu.addItem((item) =>
@@ -224,14 +215,7 @@ function buildDecorations(view: EditorView): DecorationSet {
                 start,
                 end,
                 Decoration.replace({
-                    widget: new TimerWidget({
-                        id: match[1],
-                        kind: (match[2] as TimerData['kind']) ?? 'stopwatch',
-                        state: match[3] as TimerData['state'],
-                        elapsed: parseInt(match[4], 10),
-                        startedAt: parseInt(match[5], 10),
-                        duration: parseInt(match[6] ?? '0', 10),
-                    }),
+                    widget: new TimerWidget(extractTimerData(match)),
                 }),
             );
         }

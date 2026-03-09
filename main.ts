@@ -25,6 +25,8 @@ import {
     parseDurationInput,
     formatDuration,
     TIMER_MUTATED_EVENT,
+    extractTimerData,
+    promptForTimeChange,
 } from './src/timer';
 import { parse, render, insertTimer, replaceTimer, removeTimer, TIMER_RE } from './src/editor';
 import { timerViewPlugin } from './src/widget';
@@ -35,24 +37,6 @@ const DEFAULT_SETTINGS: TimerSettings = {
     runningTimerFiles: [],
     defaultCountdownSeconds: 25 * 60,
 };
-
-function toTimerData(
-    id: string,
-    kind: string | undefined,
-    state: string,
-    elapsed: string,
-    startedAt: string,
-    duration: string | undefined,
-): TimerData {
-    return {
-        id,
-        kind: (kind as TimerKind) ?? 'stopwatch',
-        state: state as TimerState,
-        elapsed: parseInt(elapsed, 10),
-        startedAt: parseInt(startedAt, 10),
-        duration: parseInt(duration ?? '0', 10),
-    };
-}
 
 function updateTimerInContent(
     content: string,
@@ -69,14 +53,18 @@ function updateTimerInContent(
         while ((m = re.exec(line)) !== null) {
             if (m[1] !== targetId) continue;
 
-            const current = toTimerData(m[1], m[2], m[3], m[4], m[5], m[6]);
+            const current = extractTimerData(m);
             const next = mutator(current);
             const start = m.index;
             const end = start + m[0].length;
 
             if (next === null) {
-                const removeStart = start > 0 && line[start - 1] === ' ' ? start - 1 : start;
-                const removeEnd = end < line.length && line[end] === ' ' ? end + 1 : end;
+                const hasSpaceBefore = start > 0 && line[start - 1] === ' ';
+                const hasSpaceAfter = end < line.length && line[end] === ' ';
+
+                const removeStart = hasSpaceBefore ? start - 1 : start;
+                const removeEnd = (hasSpaceAfter && !hasSpaceBefore) ? end + 1 : end;
+
                 lines[i] = line.slice(0, removeStart) + line.slice(removeEnd);
             } else {
                 lines[i] = line.slice(0, start) + render(next) + line.slice(end);
@@ -196,24 +184,17 @@ class TimerRenderChild extends MarkdownRenderChild {
             item.setTitle('Change time')
                 .setIcon('clock')
                 .onClick(() => {
-                    const shown = this.data.kind === 'countdown'
-                        ? currentRemaining(this.data)
-                        : currentElapsed(this.data);
-
-                    const raw = window.prompt(
-                        'Set time. Use mm:ss, hh:mm:ss, or a whole number for minutes.',
-                        formatDuration(shown),
-                    );
-
-                    if (raw === null) return;
-
-                    const secs = parseDurationInput(raw);
-                    if (secs === null) {
-                        new Notice('Invalid time.');
-                        return;
-                    }
-
-                    void this.mutate((data) => setDisplayedSeconds(data, secs, nowSec()));
+                    const currentData = this.data;
+                    const mutateFn = this.mutate.bind(this);
+                    
+                    setTimeout(() => {
+                        try {
+                            const next = promptForTimeChange(currentData);
+                            if (next) void mutateFn(() => next);
+                        } catch {
+                            new Notice('Invalid time.');
+                        }
+                    }, 50);
                 }));
 
         menu.addItem((item) =>
@@ -332,7 +313,7 @@ export default class TimerPlugin extends Plugin {
                         frag.append(text.slice(last, m.index));
                     }
 
-                    const data = toTimerData(m[1], m[2], m[3], m[4], m[5], m[6]);
+                    const data = extractTimerData(m);
                     const span = document.createElement('span');
                     span.className = `timer-badge timer-${data.kind} timer-${data.state}`;
                     frag.appendChild(span);
@@ -561,9 +542,9 @@ export default class TimerPlugin extends Plugin {
     private pauseTimersInContent(content: string, refTime: number, counter?: { count: number }): string {
         return content.replace(
             new RegExp(TIMER_RE.source, 'g'),
-            (match, id, kind, state, elapsed, startedAt, duration) => {
-                const data = toTimerData(id, kind, state, elapsed, startedAt, duration);
-                if (data.state !== 'running') return match;
+            (...matchArgs) => {
+                const data = extractTimerData(matchArgs as unknown as RegExpExecArray);
+                if (data.state !== 'running') return matchArgs[0];
                 if (counter) counter.count++;
                 return render(pauseData(data, refTime));
             },
@@ -667,32 +648,17 @@ export default class TimerPlugin extends Plugin {
         }
 
         if (action === 'change') {
-            const shown = parsed.kind === 'countdown'
-                ? currentRemaining(parsed)
-                : currentElapsed(parsed);
-
-            const raw = window.prompt(
-                'Set time. Use mm:ss, hh:mm:ss, or a whole number for minutes.',
-                formatDuration(shown),
-            );
-
-            if (raw === null) return;
-
-            const secs = parseDurationInput(raw);
-            if (secs === null) {
-                new Notice('Invalid time.');
-                return;
-            }
-
-            replaceTimer(
-                editor,
-                line,
-                render(setDisplayedSeconds(parsed, secs, nowSec())),
-                parsed.start,
-                parsed.end,
-            );
-
-            this.refreshRegistryForEditor(editor, view);
+            setTimeout(() => {
+                try {
+                    const next = promptForTimeChange(parsed);
+                    if (next) {
+                        replaceTimer(editor, line, render(next), parsed.start, parsed.end);
+                        this.refreshRegistryForEditor(editor, view);
+                    }
+                } catch {
+                    new Notice('Invalid time.');
+                }
+            }, 50);
             return;
         }
 

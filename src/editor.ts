@@ -51,7 +51,12 @@ export function replaceTimer(editor: Editor, line: number, span: string, start: 
 
 export function removeTimer(editor: Editor, line: number, start: number, end: number): void {
     const lineText = editor.getLine(line);
-    const removeStart = (start > 0 && lineText[start - 1] === ' ') ? start - 1 : start;
-    const removeEnd = (end < lineText.length && lineText[end] === ' ') ? end + 1 : end;
+    const hasSpaceBefore = start > 0 && lineText[start - 1] === ' ';
+    const hasSpaceAfter = end < lineText.length && lineText[end] === ' ';
+
+    // If both surround the timer, only remove the previous space, not both.
+    const removeStart = hasSpaceBefore ? start - 1 : start;
+    const removeEnd = (hasSpaceAfter && !hasSpaceBefore) ? end + 1 : end;
+
     editor.replaceRange('', { line, ch: removeStart }, { line, ch: removeEnd });
 }
