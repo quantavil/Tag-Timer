@@ -1,9 +1,9 @@
 {
     "id": "tag-timer",
-    "version": "1.2.0",
+    "version": "2.0.0",
     "minAppVersion": "1.0.0",
     "name": "Tag Timer",
     "author": "quantavil",
-    "description": "Add a timer to Tags and get analytics on how long you spend on each task.",
+    "description": "Add inline timers to any line in your notes.",
     "isDesktopOnly": false
 }

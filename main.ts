@@ -1,209 +1,249 @@
-import { Plugin, MarkdownView, WorkspaceLeaf, Menu, Editor, Notice } from 'obsidian';
-import { TagTimerSettings, TimerData } from './src/types';
-import { CONSTANTS, LANG } from './src/constants';
-import { TimerUtils } from './src/utils';
-import { AnalyticsStore } from './src/analytics/store';
-import { TimerAnalyticsView } from './src/analytics/view';
-import { TimerDataUpdater } from './src/timer/data-updater';
-import { TimerManager } from './src/timer/manager';
-import { TimerFileManager } from './src/timer/file-manager';
-import { TimerParser } from './src/timer/parser';
-import { TimerSettingTab } from './src/settings';
-import ChartDataLabels from 'chartjs-plugin-datalabels';
-import { Chart } from 'chart.js';
+import { Plugin, MarkdownView, Menu, Editor, Notice, App, PluginSettingTab, Setting } from 'obsidian';
+import { TimerData, TimerSettings } from './src/types';
+import { generateId, nowSec, currentElapsed, startInterval, stopInterval, stopAllIntervals } from './src/timer';
+import { parse, render, insertTimer, replaceTimer, removeTimer } from './src/editor';
 
-const DEFAULT_SETTINGS: TagTimerSettings = {
-    autoStopTimers: 'never',
-    timerInsertLocation: 'tail',
-    timersState: {}
-};
+const DEFAULT_SETTINGS: TimerSettings = { insertPosition: 'tail' };
 
 export default class TimerPlugin extends Plugin {
-    manager!: TimerManager;
-    default_settings!: TagTimerSettings;
-    settings!: TagTimerSettings;
-    analyticsStore!: AnalyticsStore;
-    fileManager!: TimerFileManager;
+    settings!: TimerSettings;
+    timers = new Map<string, TimerData>();
 
     async onload() {
-        this.manager = new TimerManager();
-        this.default_settings = DEFAULT_SETTINGS;
         await this.loadSettings();
-
-        const analyticsPath = this.app.vault.configDir + '/plugins/tag-timer/analytics.json';
-        this.analyticsStore = new AnalyticsStore(this.app, CONSTANTS.RETENTION_DAYS, analyticsPath);
-        this.fileManager = new TimerFileManager(this.app, this.settings);
 
         this.addCommand({
             id: 'toggle-timer',
-            name: LANG.command_name.toggle,
-            hotkeys: [{ modifiers: ["Mod", "Shift"], key: "t" }],
-            editorCallback: (editor, view) => {
-                const lineNum = editor.getCursor().line;
-                const parsed = TimerParser.parse(editor.getLine(lineNum));
-                if (parsed) {
-                    const action = parsed.class === 'timer-r' ? 'pause' : 'continue';
-                    this.handleTimerAction(action, view, lineNum, parsed);
-                } else this.handleTimerAction('start', view, lineNum);
-            }
+            name: 'Toggle timer',
+            hotkeys: [{ modifiers: ['Alt'], key: 's' }],
+            editorCallback: (editor, view) => this.handleCommand(editor, view as MarkdownView, 'toggle'),
         });
 
-        this.registerEvent(this.app.workspace.on('editor-menu', this.onEditorMenu.bind(this)));
-        this.registerEvent(this.app.workspace.on('file-open', this.onFileOpen.bind(this)));
-        this.registerEvent(this.app.workspace.on('layout-change', this.onLayoutChange.bind(this)));
+        this.addCommand({
+            id: 'delete-timer',
+            name: 'Delete timer',
+            hotkeys: [{ modifiers: ['Alt'], key: 'd' }],
+            editorCallback: (editor, view) => this.handleCommand(editor, view as MarkdownView, 'delete'),
+        });
 
-        this.registerView(CONSTANTS.ANALYTICS_VIEW_TYPE, (leaf) => new TimerAnalyticsView(leaf));
-        this.addRibbonIcon('pie-chart', 'Timer Analytics', () => this.activateView());
+        this.registerEvent(
+            this.app.workspace.on('editor-menu', (menu, editor, view) => {
+                if (view instanceof MarkdownView) this.buildContextMenu(menu, editor, view);
+            })
+        );
+
+        this.registerEvent(
+            this.app.workspace.on('file-open', (file) => {
+                if (!file) return;
+                const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+                if (view?.file === file) this.restoreTimersInView(view);
+            })
+        );
+
         this.addSettingTab(new TimerSettingTab(this.app, this));
 
-        this.app.workspace.onLayoutReady(() => {
-            this.restoreAllTimers();
-            Chart.register(ChartDataLabels);
-        });
+        this.app.workspace.onLayoutReady(() => this.restoreAllTimers());
     }
 
     async onunload() {
-        await this.flushRunningTimers();
-        this.manager.clearAll();
-        this.fileManager.clearLocations();
+        this.pauseAll();
+        stopAllIntervals();
     }
 
-    async handleTimerAction(action: string, view: MarkdownView | any, lineNum: number, parsedData: any = null) {
-        if (view.getMode && view.getMode() === 'preview') { new Notice(LANG.notice.update_in_preview); return; }
+    // --- Core actions ---
 
-        const now = TimerUtils.getCurrentTimestamp();
-        let timerData: Partial<TimerData> | undefined;
-
-        if (action === 'start') {
-            timerData = TimerDataUpdater.calculate('init', {}, now);
-            const newId = await this.fileManager.writeTimer(timerData.timerId as string, timerData, view, view.file, lineNum);
-            this.manager.startTimer(newId, timerData as TimerData, this.tick.bind(this));
+    handleCommand(editor: Editor, view: MarkdownView, action: 'toggle' | 'delete') {
+        if ((view as any).getMode?.() === 'preview') {
+            new Notice('Switch to edit mode to use timers.');
             return;
         }
-
-        const timerId = parsedData?.timerId; if (!timerId) return;
+        const line = editor.getCursor().line;
+        const parsed = parse(editor.getLine(line));
 
         if (action === 'delete') {
-            const editor = view.editor;
-            editor.replaceRange('', { line: lineNum, ch: parsedData.beforeIndex }, { line: lineNum, ch: parsedData.afterIndex });
-            this.manager.stopTimer(timerId); this.fileManager.locations.delete(timerId);
-            this.cleanupTimerState(timerId); new Notice(LANG.notice.deleted); return;
-        }
-
-        timerData = TimerDataUpdater.calculate(action, parsedData, now);
-        const { class: newClass, dur, ts } = timerData;
-        if (dur === undefined || !ts) return; // safety
-
-        if (['pause', 'forcepause'].includes(action)) {
-            const ctx = await this.fileManager.getTimerContext(timerId);
-            await this.logAnalyticsForLine(timerData, ctx.lineText, ctx.filePath);
-            this.manager.stopTimer(timerId); this.cleanupTimerState(timerId);
-            const success = await this.fileManager.updateTimer(timerId, timerData, { view, file: view.file, lineNum });
-            if (!success) { this.manager.stopTimer(timerId); this.cleanupTimerState(timerId); }
-        } else if (action === 'continue' || action === 'restore') {
-            const success = await this.fileManager.updateTimer(timerId, timerData, { view, file: view.file, lineNum });
-            if (success) this.manager.startTimer(timerId, timerData as TimerData, this.tick.bind(this));
-            else { this.manager.stopTimer(timerId); this.cleanupTimerState(timerId); }
-        }
-    }
-
-    async tick(timerId: string) {
-        const old = this.manager.getTimerData(timerId); if (!old || old.class !== 'timer-r') return;
-        const now = TimerUtils.getCurrentTimestamp();
-        const updated = TimerDataUpdater.calculate('update', old, now);
-        this.manager.updateTimerData(timerId, updated as TimerData);
-        const success = await this.fileManager.updateTimer(timerId, updated);
-        if (!success) { this.manager.stopTimer(timerId); this.cleanupTimerState(timerId); }
-    }
-
-    onFileOpen(file: any) {
-        if (!file) {
-            if (this.settings.autoStopTimers === 'close') {
-                const views = this.app.workspace.getLeavesOfType('markdown');
-                if (views.length === 0) this.flushRunningTimers();
-            }
+            if (parsed) this.deleteTimer(editor, line, parsed.id);
+            else new Notice('No timer found on current line.');
             return;
         }
-        const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-        if (view?.file === file) this.restoreTimersInView(view);
-    }
 
-    onLayoutChange() {
-        const openFiles = new Set<string>();
-        this.app.workspace.getLeavesOfType('markdown').forEach(leaf => {
-            if (leaf.view instanceof MarkdownView && leaf.view.file) openFiles.add(leaf.view.file.path);
-        });
-        for (const loc of this.fileManager.locations.values()) {
-            if (loc.file?.path && !openFiles.has(loc.file.path)) {
-                this.fileManager.clearLocationsForFile(loc.file.path);
-            }
+        if (!parsed) {
+            this.startTimer(editor, line);
+        } else if (parsed.state === 'running') {
+            this.pauseTimer(editor, line, parsed.id);
+        } else {
+            this.resumeTimer(editor, line, parsed.id);
         }
     }
+
+    startTimer(editor: Editor, line: number) {
+        const id = generateId();
+        const data: TimerData = { id, state: 'running', elapsed: 0, startedAt: nowSec() };
+        this.timers.set(id, data);
+        insertTimer(editor, line, render(data), this.settings.insertPosition);
+        startInterval(id, (timerId) => this.tick(timerId, editor));
+    }
+
+    pauseTimer(editor: Editor, line: number, id: string) {
+        const data = this.timers.get(id);
+        if (!data) return;
+        const elapsed = currentElapsed(data);
+        const paused: TimerData = { ...data, state: 'paused', elapsed, startedAt: nowSec() };
+        this.timers.set(id, paused);
+        stopInterval(id);
+
+        const parsed = parse(editor.getLine(line));
+        if (parsed && parsed.id === id) {
+            replaceTimer(editor, line, render(paused), parsed.start, parsed.end);
+        }
+    }
+
+    resumeTimer(editor: Editor, line: number, id: string) {
+        const existing = this.timers.get(id);
+        const parsed = parse(editor.getLine(line));
+        if (!parsed || parsed.id !== id) return;
+
+        const data: TimerData = {
+            id,
+            state: 'running',
+            elapsed: existing?.elapsed ?? parsed.elapsed,
+            startedAt: nowSec(),
+        };
+        this.timers.set(id, data);
+        replaceTimer(editor, line, render(data), parsed.start, parsed.end);
+        startInterval(id, (timerId) => this.tick(timerId, editor));
+    }
+
+    deleteTimer(editor: Editor, line: number, id: string) {
+        stopInterval(id);
+        this.timers.delete(id);
+        const parsed = parse(editor.getLine(line));
+        if (parsed && parsed.id === id) {
+            removeTimer(editor, line, parsed.start, parsed.end);
+        }
+        new Notice('Timer deleted');
+    }
+
+    tick(id: string, editor: Editor) {
+        const data = this.timers.get(id);
+        if (!data || data.state !== 'running') return;
+
+        const now = nowSec();
+        const elapsed = currentElapsed(data);
+        const updated: TimerData = { ...data, elapsed, startedAt: now };
+        this.timers.set(id, updated);
+
+        // Find the timer in the editor and update its display
+        for (let i = 0; i < editor.lineCount(); i++) {
+            const parsed = parse(editor.getLine(i));
+            if (parsed && parsed.id === id) {
+                replaceTimer(editor, i, render(updated), parsed.start, parsed.end);
+                return;
+            }
+        }
+        // Timer not found in editor, stop it
+        stopInterval(id);
+        this.timers.delete(id);
+    }
+
+    // --- Restore ---
 
     restoreAllTimers() {
-        this.app.workspace.getLeavesOfType('markdown').forEach(leaf => { if (leaf.view instanceof MarkdownView) this.restoreTimersInView(leaf.view); });
+        this.app.workspace.getLeavesOfType('markdown').forEach((leaf) => {
+            if (leaf.view instanceof MarkdownView) this.restoreTimersInView(leaf.view);
+        });
     }
-    restoreTimersInView(view: any) {
+
+    restoreTimersInView(view: MarkdownView) {
         const editor = view.editor;
         for (let i = 0; i < editor.lineCount(); i++) {
-            const parsed = TimerParser.parse(editor.getLine(i));
-            if (parsed?.class === 'timer-r') {
-                const { autoStopTimers } = this.settings;
-                const shouldRestore = autoStopTimers === 'never' || (autoStopTimers === 'quit' && this.manager.isStartedInThisSession(parsed.timerId));
-                this.handleTimerAction(shouldRestore ? 'restore' : 'forcepause', view, i, parsed);
+            const parsed = parse(editor.getLine(i));
+            if (parsed?.state === 'running') {
+                const data: TimerData = {
+                    id: parsed.id,
+                    state: 'running',
+                    elapsed: parsed.elapsed,
+                    startedAt: nowSec(),
+                };
+                this.timers.set(parsed.id, data);
+                replaceTimer(editor, i, render(data), parsed.start, parsed.end);
+                startInterval(parsed.id, (timerId) => this.tick(timerId, editor));
             }
         }
     }
-    async flushRunningTimers() {
-        if (this.settings.autoStopTimers === 'never') return; // Avoid double counting across sessions
-        const now = TimerUtils.getCurrentTimestamp();
-        for (const [timerId, data] of this.manager.getAllTimers()) {
-            if (data?.class !== 'timer-r') continue;
-            const paused = TimerDataUpdater.calculate('pause', data, now);
-            const ctx = await this.fileManager.getTimerContext(timerId);
-            await this.logAnalytics(paused as TimerData, ctx.lineText, ctx.filePath);
-            this.manager.stopTimer(timerId);
+
+    pauseAll() {
+        const now = nowSec();
+        for (const [id, data] of this.timers) {
+            if (data.state === 'running') {
+                this.timers.set(id, { ...data, state: 'paused', elapsed: currentElapsed(data), startedAt: now });
+            }
         }
     }
 
-    getAnalyticsPath(): string { return this.app.vault.configDir + '/plugins/tag-timer/analytics.json'; }
-    async logAnalyticsForLine(timerData: Partial<TimerData>, lineText: string, filePath: string) { await this.logAnalytics(timerData, lineText, filePath); }
-    async logAnalytics(timerData: Partial<TimerData>, lineText: string, filePath: string) {
-        const { timerId, dur } = timerData; if (!timerId || typeof dur !== 'number') return;
-        this.settings.timersState ||= {}; const lastLogged = this.settings.timersState[timerId] || 0; const increment = dur - lastLogged; if (increment <= 0) return;
-        const tags = lineText.match(CONSTANTS.REGEX.HASHTAGS) || [];
-        try {
-            await this.analyticsStore.append({ timestamp: new Date().toISOString(), duration: increment, file: filePath, tags });
-            this.settings.timersState[timerId] = dur; await this.saveSettings();
-        } catch (e) { console.error("Error writing analytics data:", e); }
-    }
-    cleanupTimerState(timerId: string) { if (this.settings.timersState?.[timerId]) { delete this.settings.timersState[timerId]; this.saveSettings(); } }
+    // --- Context menu ---
 
-    onEditorMenu(menu: Menu, editor: Editor, view: MarkdownView) {
-        const lineNum = editor.getCursor().line; const parsed = TimerParser.parse(editor.getLine(lineNum));
-        const items = parsed ? this.getRunningMenuItems(parsed) : this.getNewTimerMenuItems();
-        items.forEach(item => { menu.addItem(mi => mi.setTitle(item.title).setIcon(item.icon).onClick(() => item.action(view, lineNum, parsed))); });
-    }
-    getRunningMenuItems(parsed: any) {
-        const items: any[] = [];
-        if (parsed.class === 'timer-r') items.push({ title: LANG.action_paused, icon: 'pause', action: (view: any, lineNum: number, p: any) => this.handleTimerAction('pause', view, lineNum, p) });
-        else items.push({ title: LANG.action_continue, icon: 'play', action: (view: any, lineNum: number, p: any) => this.handleTimerAction('continue', view, lineNum, p) });
-        items.push({ title: LANG.command_name.delete, icon: 'trash', action: (view: any, lineNum: number, p: any) => this.handleTimerAction('delete', view, lineNum, p) });
-        return items;
-    }
-    getNewTimerMenuItems() { return [{ title: LANG.action_start, icon: 'play', action: (view: any, lineNum: number) => this.handleTimerAction('start', view, lineNum) }]; }
+    buildContextMenu(menu: Menu, editor: Editor, view: MarkdownView) {
+        const line = editor.getCursor().line;
+        const parsed = parse(editor.getLine(line));
 
-    async loadSettings() { this.settings = Object.assign({}, this.default_settings, await this.loadData()); }
-    async saveSettings() { await this.saveData(this.settings); if (this.fileManager) this.fileManager.settings = this.settings; }
-    async updateSetting(key: keyof TagTimerSettings, value: any) { this.settings[key] = value as never; await this.saveSettings(); if (key === 'timerInsertLocation' && this.fileManager) this.fileManager.settings = this.settings; }
-
-    async activateView(showWeekly = false) {
-        const leaves = this.app.workspace.getLeavesOfType(CONSTANTS.ANALYTICS_VIEW_TYPE);
-        let leaf = leaves[0];
-        if (!leaf) { leaf = this.app.workspace.getRightLeaf(false) as WorkspaceLeaf; await leaf.setViewState({ type: CONSTANTS.ANALYTICS_VIEW_TYPE, active: true }); }
-        else { this.app.workspace.revealLeaf(leaf); }
-        if (leaf.view instanceof TimerAnalyticsView) {
-            leaf.view.analyticsStore = this.analyticsStore; leaf.view.showWeekly = showWeekly; leaf.view.onOpen();
+        if (!parsed) {
+            menu.addItem((item) =>
+                item.setTitle('Start timer').setIcon('play').onClick(() => this.startTimer(editor, line))
+            );
+        } else {
+            if (parsed.state === 'running') {
+                menu.addItem((item) =>
+                    item.setTitle('Pause timer').setIcon('pause').onClick(() => this.pauseTimer(editor, line, parsed.id))
+                );
+            } else {
+                menu.addItem((item) =>
+                    item.setTitle('Resume timer').setIcon('play').onClick(() => this.resumeTimer(editor, line, parsed.id))
+                );
+            }
+            menu.addItem((item) =>
+                item.setTitle('Delete timer').setIcon('trash').onClick(() => this.deleteTimer(editor, line, parsed.id))
+            );
         }
+    }
+
+    // --- Settings ---
+
+    async loadSettings() {
+        this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    }
+
+    async saveSettings() {
+        await this.saveData(this.settings);
+    }
+}
+
+class TimerSettingTab extends PluginSettingTab {
+    plugin: TimerPlugin;
+
+    constructor(app: App, plugin: TimerPlugin) {
+        super(app, plugin);
+        this.plugin = plugin;
+    }
+
+    display() {
+        const { containerEl } = this;
+        containerEl.empty();
+
+        new Setting(containerEl).setName('Timer Settings').setHeading();
+
+        new Setting(containerEl)
+            .setName('Insert position')
+            .setDesc('Where to insert new timers on a line.')
+            .addDropdown((dd) =>
+                dd
+                    .addOption('tail', 'End of line')
+                    .addOption('head', 'Start of line')
+                    .addOption('cursor', 'At cursor')
+                    .setValue(this.plugin.settings.insertPosition)
+                    .onChange(async (v) => {
+                        this.plugin.settings.insertPosition = v as TimerSettings['insertPosition'];
+                        await this.plugin.saveSettings();
+                    })
+            );
     }
 }

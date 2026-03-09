@@ -1,26 +1,21 @@
 {
     "name": "tag-timer",
-    "version": "1.2.0",
-    "description": "Add a timer to Tags and get analytics on how long you spend on each task.",
+    "version": "2.0.0",
+    "description": "Add inline timers to any line in your notes.",
     "main": "main.js",
     "scripts": {
         "dev": "node esbuild.config.mjs",
-        "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
-        "version": "node version-bump.mjs && git add manifest.json versions.json"
+        "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production"
     },
     "keywords": [],
     "author": "quantavil",
     "license": "MIT",
     "devDependencies": {
-        "@types/node": "^16.11.6",
+        "@types/node": "^16.18.126",
         "builtin-modules": "^3.3.0",
         "esbuild": "0.17.3",
-        "obsidian": "latest",
+        "obsidian": "^1.12.3",
         "tslib": "2.4.0",
         "typescript": "4.9.5"
-    },
-    "dependencies": {
-        "chart.js": "^4.4.2",
-        "chartjs-plugin-datalabels": "^2.2.0"
     }
 }

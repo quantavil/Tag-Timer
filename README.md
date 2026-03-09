@@ -1,66 +1,50 @@
 # Tag Timer
 
-An Obsidian plugin to add timers to tags and get analytics on how long you spend on each task.
+A minimal, highly-efficient Obsidian plugin for adding inline timers directly into your notes.
+
+This is a complete redesign from v1.x, strictly focusing on performance, zero external dependencies, and adhering to the DRY principle.
 
 ## Features
 
--   **Cross-Platform:** Works on both desktop and mobile versions of Obsidian.
--   **Flexible Timer Control:**
-    -   Start, pause, and resume timers with ease.
-    -   Timers can be controlled via the command palette or a right-click context menu in the editor.
--   **Persistent Timers:** Timers are saved with your notes and will be restored when you reopen Obsidian.
--   **Analytics:**
-    -   View daily and weekly analytics of your timed tasks.
-    -   Visualize your time spent with bar and doughnut charts.
-    -   Reset analytics data when needed.
--   **Customizable:**
-    -   Configure where the timer is inserted in the line (beginning or end).
-    -   Choose when to automatically stop timers (on file close, on Obsidian quit, or never).
+- **Inline Timers:** Add a timer to any line in your notes.
+- **Lightning Fast Hotkeys:**
+  - `Alt+S`: Toggle timer (Start / Pause / Resume)
+  - `Alt+D`: Delete timer
+- **Auto-Restore:** Running timers are automatically paused when you close the plugin and resumed when you reopen your notes.
+- **Smart Formatting:** Timers use Obsidian's native CSS variables and elegantly adapt to your light/dark themes.
+- **Zero Dependencies:** No heavy charting libraries; purely relies on Obsidian's internal APIs.
 
 ## Usage
 
-### Toggling Timers
+### Hotkeys (Recommended)
 
--   **Command Palette:**
-    -   Open the command palette (`Ctrl+P` or `Cmd+P`).
-    -   Search for "Tag Timer: Toggle timer" to start, pause, or resume a timer on the current line.
-    -   Search for "Tag Timer: Delete timer" to remove a timer from the current line.
--   **Editor Menu:**
-    -   Right-click on a line in the editor to open the context menu.
-    -   Select "Start timer", "Pause timer", "Continue timer", or "Delete timer".
+Position your cursor anywhere on a line:
 
-### Analytics
+- **Start/Pause/Resume:** Press `Alt+S` to toggle a timer. 
+- **Delete:** Press `Alt+D` to delete a timer from the current line.
 
--   **Open Analytics View:**
-    -   Click the "pie-chart" icon in the ribbon to open the timer analytics view.
-    -   Alternatively, use the command "Tag Timer: Open Timer Analytics" or "Tag Timer: Open Weekly Timer Analytics".
--   **Reset Analytics:**
-    -   Use the commands "Tag Timer: Reset Daily Timer Analytics" or "Tag Timer: Reset Weekly Timer Analytics" to clear the respective analytics data.
+### Context Menu
 
-## Installation
+- Right-click anywhere on a line in the editor to open the context menu.
+- Select **Start timer**, **Pause timer**, **Resume timer**, or **Delete timer** depending on the timer's current state.
 
-1.  Open Obsidian's settings.
-2.  Go to "Community plugins" and turn off "Safe mode".
-3.  Click "Browse" and search for "Tag Timer".
-4.  Click "Install" and then "Enable".
+### Settings
 
-## Configuration
+Go to **Settings > Community plugins > Tag Timer** to configure:
 
-To configure the plugin, go to the "Tag Timer Settings" in Obsidian's settings.
+- **Insert position:** Choose whether new timers are inserted at the **end of the line**, the **start of the line**, or exactly at your **cursor**.
 
--   **Daily Analytics Reset:** Automatically reset all analytics data at the start of a new day.
--   **Weekly Analytics Reset:** Automatically reset weekly analytics data at the start of a new week (Monday).
--   **Auto-stop timers:** Choose when to automatically stop running timers:
-    -   **Never:** Timers will continue running until manually stopped.
-    -   **On Obsidian quit:** Timers will be paused when you quit Obsidian.
-    -   **On file close:** Timers will be paused when you close the file they are in.
--   **Timer insert location:** Choose where to insert the timer in the line:
-    -   **Beginning of line:** The timer will be inserted at the beginning of the line.
-    -   **End of line:** The timer will be inserted at the end of the line.
+## Installation (Manual)
+
+1. Download the latest `main.js`, `manifest.json`, and `styles.css` from the `dist/` folder.
+2. Create a folder named `tag-timer` inside your vault's `.obsidian/plugins/` directory.
+3. Place the downloaded files into that folder.
+4. Reload Obsidian.
+5. Go to **Settings > Community plugins**, turn off "Safe mode", and enable **Tag Timer**.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a pull request or open an issue on the [GitHub repository](https://github.com/quantavil/tag-timer).
+Contributions are welcome! If you encounter any issues or have feature requests, please open an issue or submit a pull request on the [GitHub repository](https://github.com/quantavil/tag-timer).
 
 ## License
 
