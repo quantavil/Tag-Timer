@@ -1,6 +1,7 @@
 /* Timer badges */
 .timer-running,
-.timer-paused {
+.timer-paused,
+.timer-stopped {
     font-family: var(--font-monospace);
     font-weight: 700;
     font-size: 0.85em;
@@ -25,8 +26,15 @@
     border: 1px solid rgba(var(--color-orange-rgb), 0.4);
 }
 
+.timer-stopped {
+    color: var(--text-muted);
+    background: var(--background-modifier-active-hover);
+    border: 1px solid var(--background-modifier-border);
+}
+
 .timer-running:hover,
-.timer-paused:hover {
+.timer-paused:hover,
+.timer-stopped:hover {
     transform: translateY(-1px);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     filter: brightness(1.1);

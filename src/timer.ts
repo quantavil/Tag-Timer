@@ -1,11 +1,8 @@
 import { TimerData } from './types';
 
-const BASE62 = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-
 export function generateId(): string {
-    let t = Date.now(), res = '';
-    while (t > 0) { res = BASE62[t % 62] + res; t = Math.floor(t / 62); }
-    return res;
+    // We only need a short, reasonably unique string for the editor (e.g. 8 chars of a UUID)
+    return crypto.randomUUID().slice(0, 8);
 }
 
 export function nowSec(): number {
@@ -28,6 +25,11 @@ export function formatDuration(totalSeconds: number): string {
 
 export function renderDisplay(data: TimerData): string {
     const cur = currentElapsed(data);
-    const icon = data.state === 'running' ? (cur % 2 === 0 ? '⌛' : '⏳') : '⏳';
+    let icon = '⏳';
+    if (data.state === 'running') {
+        icon = cur % 2 === 0 ? '⌛' : '⏳';
+    } else if (data.state === 'stopped') {
+        icon = '⏹️';
+    }
     return `${icon} ${formatDuration(cur)}`;
 }

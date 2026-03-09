@@ -1,4 +1,4 @@
-export type TimerState = 'running' | 'paused';
+export type TimerState = 'running' | 'paused' | 'stopped';
 
 export interface TimerData {
     id: string;
@@ -9,4 +9,5 @@ export interface TimerData {
 
 export interface TimerSettings {
     insertPosition: 'cursor' | 'head' | 'tail';
+    lastActiveTime: number;
 }

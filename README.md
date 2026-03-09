@@ -10,23 +10,35 @@ This is a complete redesign from v1.x, strictly focusing on performance, zero ex
 - **Lightning Fast Hotkeys:**
   - `Alt+S`: Toggle timer (Start / Pause / Resume)
   - `Alt+D`: Delete timer
-- **Auto-Restore:** Running timers are automatically paused when you close the plugin and resumed when you reopen your notes.
+- **Clickable Badges:** Click any timer badge directly in the Editor or Reading View to instantly toggle it.
+- **Auto-Restore & Crash Protection:** Running timers are automatically paused when you close the plugin and restored when you reopen. Safe against mobile force-closes.
+- **One Timer Per Line:** Clean and organized. Automatically prevents you from accidentally clustering multiple timers on a single line.
 - **Smart Formatting:** Timers use Obsidian's native CSS variables and elegantly adapt to your light/dark themes.
 - **Zero Dependencies:** No heavy charting libraries; purely relies on Obsidian's internal APIs.
 
 ## Usage
 
-### Hotkeys (Recommended)
+### Hotkeys & Interactions
 
-Position your cursor anywhere on a line:
+Position your cursor anywhere on a line with a timer, or simply **click** the timer badge!
 
-- **Start/Pause/Resume:** Press `Alt+S` to toggle a timer. 
-- **Delete:** Press `Alt+D` to delete a timer from the current line.
+- **Toggle (Start/Pause/Resume):** Press `Alt+S` or click the badge.
+- **Delete:** Press `Alt+D`.
 
-### Context Menu
+### Timer States (Pause vs. Stop)
 
-- Right-click anywhere on a line in the editor to open the context menu.
-- Select **Start timer**, **Pause timer**, **Resume timer**, or **Delete timer** depending on the timer's current state.
+Timers can exist in a few different states:
+1. **Running (⌛):** Actively ticking up time.
+2. **Paused (⏳):** Temporarily halted. Resuming a paused timer picks up exactly where it left off.
+3. **Stopped (⏹️):** Finished or archived. A stopped timer retains its final time on the screen as a record, but if you choose to "Resume" a stopped timer, it will start over from `0s`.
+
+### Command Palette & Context Menu
+
+Right-click anywhere on a line in the editor (or use the Command Palette) to access:
+- **Start / Pause / Resume timer**
+- **Stop timer:** Marks the timer as finished (⏹️). 
+- **Reset timer:** Leaves the timer paused, but sets the elapsed time back to `0s`.
+- **Delete timer:** Removes the timer entirely.
 
 ### Settings
 
