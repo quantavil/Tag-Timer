@@ -1,7 +1,7 @@
 import { Editor } from 'obsidian';
 import { TimerData, TimerKind, TimerState } from './types';
 
-export const TIMER_RE = /⏳\[([^|\]]+)\|(?:(stopwatch|countdown)\|)?(running|paused|stopped)\|(\d+)\|(\d+)(?:\|(\d+))?\]/g;
+export const TIMER_RE = /⏳\[([^|\]]+)\|(?:(stopwatch|countdown)\|)?(running|paused|stopped)\|(\d+)\|(\d+)(?:\|(\d+))?\]/;
 const LIST_RE = /^(\s*>?\s*(?:\d+\.\s|[-+*]\s|#+\s))/;
 
 export interface ParsedTimer extends TimerData {

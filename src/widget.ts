@@ -7,7 +7,7 @@ import {
     WidgetType,
 } from '@codemirror/view';
 import { RangeSetBuilder } from '@codemirror/state';
-import { App, Menu } from 'obsidian';
+import { App, Menu, Notice } from 'obsidian';
 import { TimerData } from './types';
 import {
     renderDisplay,
@@ -103,6 +103,7 @@ class TimerWidget extends WidgetType {
             const range = locate();
             if (!range) return false;
 
+            new Notice('Timer finished!');
             replaceLocatedTimer(view, range, stopData(this.data, nowSec()));
 
             if (this.interval !== null) {

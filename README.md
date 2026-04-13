@@ -6,21 +6,31 @@
 
 A minimal, high-performance Obsidian plugin for adding inline timers and countdowns directly into your notes.
 
-This version is a complete redesign focused on **efficiency**, **zero dependencies**, and a **premium user experience**.
-
 ## Features
 
 - **Lightning Fast Interaction:**
   - `Alt+S`: Toggle Timer (Start / Pause / Resume)
   - `Alt+C`: Toggle Countdown (Start / Pause / Resume)
   - `Alt+D`: Delete Timer
+- **Completion Notifications:** Visual notifications (Obsidian Notice) triggered when a countdown completes.
+- **Stop All Command:** A global command to pause all running timers across your entire vault.
 - **Countdowns & Stopwatches:** Choose between simple stopwatches or goal-oriented countdowns.
-- **Clickable Widgets:** Interactive badges in both **Live Preview** and **Reading View**. Simple click to toggle, right-click for the context menu.
+- **Clickable Widgets:** Interactive badges in both **Live Preview** and **Reading View**. Click or right-click to open the context menu.
 - **Rich Context Menu:** Right-click any timer to access Stop, Reset, Delete, or even **Change Time** manually.
 - **Auto-Restore & Crash Protection:** Running timers are automatically paused upon plugin unload and recovered when restarted. Safe across devices and through app crashes.
 - **One Timer Per Line:** Enforces a clean layout by preventing multiple timers on the same line.
-- **Native Integration:** Uses Obsidian's internal CSS variables to perfectly adapt to your theme (Light/Dark).
+- **Native Integration:** Uses Obsidian's internal CSS variables to perfectly adapt to your theme (Light/Dark). Fully compatible with Obsidian `@latest`.
 - **Zero External Dependencies:** Built with pure TypeScript and CodeMirror 6 for maximum stability and speed.
+
+## Installation via BRAT
+
+You can easily install beta versions of Tag Timer using the [BRAT](https://github.com/TfTHacker/obsidian42-brat) plugin:
+
+1. Install the **Obsidian42 - BRAT** plugin from the Community Plugins list.
+2. Enable the BRAT plugin in your settings.
+3. Open the BRAT settings and click **Add Beta plugin**.
+4. Enter the GitHub repository: `quantavil/tag-timer` (or the full repository URL).
+5. Go to the **Community Plugins** tab, reload the plugins list, and enable **Tag Timer**.
 
 ## Usage
 
@@ -28,9 +38,11 @@ This version is a complete redesign focused on **efficiency**, **zero dependenci
 
 Position your cursor anywhere on a line with a timer, or interact directly with the badge:
 
-- **Toggle (Stopwatch):** `Alt+S` or click the badge.
-- **Toggle (Countdown):** `Alt+C` or click the badge.
-- **Delete:** `Alt+D`.
+- **Toggle (Stopwatch):** `Alt+S`
+- **Toggle (Countdown):** `Alt+C`
+- **Delete:** `Alt+D`
+- **Stop All:** Search for "Stop all running timers" in the Command Palette (`Cmd/Ctrl+P`).
+- **Menu:** Click or right-click the badge.
 
 ### Timer States
 

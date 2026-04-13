@@ -124,7 +124,7 @@ export function renderDisplay(data: TimerData): string {
     let icon: string;
 
     if (data.state === 'running') {
-        icon = shown % 2 === 0 ? '⌛' : '⏳';
+        icon = '⏳';
     } else if (data.state === 'stopped') {
         icon = '⏹️';
     } else {

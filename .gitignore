@@ -11,3 +11,4 @@ yarn-error.log*
 !package.json
 !tsconfig.json
 !versions.json
+pm.md
