@@ -13,3 +13,4 @@ yarn-error.log*
 !versions.json
 pm.md
 plan.md
+.worktrees/
