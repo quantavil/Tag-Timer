@@ -139,8 +139,8 @@ export async function scanVault(app: App): Promise<VaultAnalytics> {
             // All timers contribute their elapsed time to today's totals
             byFile.set(file.path, (byFile.get(file.path) ?? 0) + eff);
 
-            // For running/paused timers, attribute their effective time to today rather than original startedAt
-            const timestamp = (isRunning || isPaused) ? nowSec : data.startedAt;
+            // For running timers, attribute their live effective time to today. For paused/stopped, use their last state change timestamp.
+            const timestamp = isRunning ? nowSec : data.startedAt;
             
             const dk = dateKey(timestamp);
             byDay.set(dk, (byDay.get(dk) ?? 0) + eff);
