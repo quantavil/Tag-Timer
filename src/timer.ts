@@ -115,6 +115,20 @@ export function parseDurationInput(raw: string): number | null {
     return null;
 }
 
+export function playBeep() {
+    try {
+        const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        osc.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.1);
+    } catch {}
+}
+
 /** Both stopwatch and countdown use ⏳/⌛ when running */
 export function renderDisplay(data: TimerData): string {
     const shown = data.kind === 'countdown'
@@ -124,7 +138,7 @@ export function renderDisplay(data: TimerData): string {
     let icon: string;
 
     if (data.state === 'running') {
-        icon = '⏳';
+        icon = '⌛';
     } else if (data.state === 'stopped') {
         icon = '⏹️';
     } else {

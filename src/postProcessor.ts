@@ -1,6 +1,6 @@
 import { App, MarkdownRenderChild, Menu, TFile, Notice } from 'obsidian';
-import { TimerData } from './types';
-import { renderDisplay, currentRemaining, nowSec, stopData } from './timer';
+import { TimerData, TimerSettings } from './types';
+import { renderDisplay, currentRemaining, nowSec, stopData, playBeep } from './timer';
 import { addTimerMenuItems } from './menu';
 import { openTimeModal } from './timeModal';
 import { mutateTimerInFile } from './controller';
@@ -14,6 +14,7 @@ export class TimerRenderChild extends MarkdownRenderChild {
         public data: TimerData,
         public app: App,
         public sourcePath: string,
+        public settings: TimerSettings,
     ) {
         super(containerEl);
     }
@@ -38,6 +39,7 @@ export class TimerRenderChild extends MarkdownRenderChild {
         ) {
             this.finishing = true;
             new Notice('Timer finished!');
+            if (this.settings.playCompletionSound) playBeep();
             void this.mutate((d) => stopData(d, nowSec())).finally(() => {
                 this.finishing = false;
             });

@@ -4,8 +4,8 @@ import {
     Notice,
 } from 'obsidian';
 import { TimerSettings } from './src/types';
-import { TIMER_RE, extractTimerData } from './src/editor';
-import { timerViewPlugin, setWidgetApp } from './src/widget';
+import { timerRegex, extractTimerData } from './src/editor';
+import { timerViewPlugin, setWidgetApp, setWidgetSettings } from './src/widget';
 import { TIMER_MUTATED_EVENT, nowSec } from './src/timer';
 import { DEFAULT_SETTINGS, TimerSettingTab } from './src/settings';
 import { handleCommand } from './src/commands';
@@ -22,6 +22,7 @@ export default class TimerPlugin extends Plugin {
     async onload() {
         await this.loadSettings();
         setWidgetApp(this.app);
+        setWidgetSettings(this.settings);
         this.registerEditorExtension(timerViewPlugin);
 
         await recoverRunningTimers(this.app, this.settings.lastActiveTime);
@@ -55,7 +56,7 @@ export default class TimerPlugin extends Plugin {
 
             for (const textNode of nodes) {
                 const text = textNode.textContent ?? '';
-                const re = new RegExp(TIMER_RE.source, 'g');
+                const re = timerRegex();
                 let m: RegExpExecArray | null;
                 let last = 0;
                 let changed = false;
@@ -73,7 +74,7 @@ export default class TimerPlugin extends Plugin {
                     const span = document.createElement('span');
                     span.className = `timer-badge timer-${data.kind} timer-${data.state}`;
                     frag.appendChild(span);
-                    ctx.addChild(new TimerRenderChild(span, data, this.app, ctx.sourcePath));
+                    ctx.addChild(new TimerRenderChild(span, data, this.app, ctx.sourcePath, this.settings));
 
                     last = m.index + m[0].length;
                 }
@@ -93,7 +94,7 @@ export default class TimerPlugin extends Plugin {
                 if (this.enforcingLimit) return;
                 const line = editor.getCursor().line;
                 const lineText = editor.getLine(line);
-                const matches = [...lineText.matchAll(new RegExp(TIMER_RE.source, 'g'))];
+                const matches = [...lineText.matchAll(timerRegex())];
 
                 if (matches.length > 1) {
                     this.enforcingLimit = true;

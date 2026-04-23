@@ -2,6 +2,7 @@ import { Editor } from 'obsidian';
 import { TimerData, TimerKind, TimerState } from './types';
 
 export const TIMER_RE = /⏳\[([^|\]]+)\|(?:(stopwatch|countdown)\|)?(running|paused|stopped)\|(\d+)\|(\d+)(?:\|(\d+))?\]/;
+export const timerRegex = () => new RegExp(TIMER_RE.source, 'g');
 const LIST_RE = /^(\s*>?\s*(?:\d+\.\s|[-+*]\s|#+\s))/;
 
 export interface ParsedTimer extends TimerData {
@@ -10,7 +11,7 @@ export interface ParsedTimer extends TimerData {
 }
 
 /** Single source of truth for regex‑match → TimerData */
-export function extractTimerData(m: RegExpExecArray | string[]): TimerData {
+export function extractTimerData(m: RegExpExecArray): TimerData {
     return {
         id: m[1],
         kind: (m[2] as TimerKind) ?? 'stopwatch',
@@ -22,7 +23,7 @@ export function extractTimerData(m: RegExpExecArray | string[]): TimerData {
 }
 
 export function parse(line: string): ParsedTimer | null {
-    const re = new RegExp(TIMER_RE.source, 'g');
+    const re = timerRegex();
     const m = re.exec(line);
     if (!m) return null;
     return { ...extractTimerData(m), start: m.index, end: re.lastIndex };

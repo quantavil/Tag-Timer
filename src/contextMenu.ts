@@ -37,7 +37,9 @@ export function buildContextMenu(
 
     addTimerMenuItems(menu, parsed, {
         replace: (next) => {
-            replaceTimer(editor, line, render(next), parsed.start, parsed.end);
+            const fresh = parse(editor.getLine(line));
+            if (!fresh || fresh.id !== parsed.id) return;
+            replaceTimer(editor, line, render(next), fresh.start, fresh.end);
         },
         changeTime: () => {
             openTimeModal(app, parsed, (next) => {
@@ -50,7 +52,9 @@ export function buildContextMenu(
             });
         },
         remove: () => {
-            removeTimer(editor, line, parsed.start, parsed.end);
+            const fresh = parse(editor.getLine(line));
+            if (!fresh || fresh.id !== parsed.id) return;
+            removeTimer(editor, line, fresh.start, fresh.end);
             new Notice('Timer deleted');
         },
     });

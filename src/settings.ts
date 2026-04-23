@@ -7,6 +7,7 @@ export const DEFAULT_SETTINGS: TimerSettings = {
     insertPosition: 'tail',
     lastActiveTime: 0,
     defaultCountdownSeconds: 25 * 60,
+    playCompletionSound: false,
 };
 
 export class TimerSettingTab extends PluginSettingTab {
@@ -21,7 +22,7 @@ export class TimerSettingTab extends PluginSettingTab {
         const { containerEl } = this;
         containerEl.empty();
 
-        new Setting(containerEl).setName('Timer Settings').setHeading();
+        containerEl.createEl('h2', { text: 'Timer Settings' });
 
         new Setting(containerEl)
             .setName('Insert position')
@@ -35,6 +36,18 @@ export class TimerSettingTab extends PluginSettingTab {
                     .onChange(async (v) => {
                         this.plugin.settings.insertPosition =
                             v as TimerSettings['insertPosition'];
+                        await this.plugin.saveSettings();
+                    }),
+            );
+
+        new Setting(containerEl)
+            .setName('Play sound on completion')
+            .setDesc('Play a brief text-editor friendly beep when a countdown finishes.')
+            .addToggle((toggle) =>
+                toggle
+                    .setValue(this.plugin.settings.playCompletionSound)
+                    .onChange(async (v) => {
+                        this.plugin.settings.playCompletionSound = v;
                         await this.plugin.saveSettings();
                     }),
             );

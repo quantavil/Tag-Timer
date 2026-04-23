@@ -14,4 +14,5 @@ export interface TimerSettings {
     insertPosition: 'cursor' | 'head' | 'tail';
     lastActiveTime: number;
     defaultCountdownSeconds: number;
+    playCompletionSound: boolean;
 }

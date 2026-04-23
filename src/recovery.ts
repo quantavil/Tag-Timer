@@ -1,21 +1,31 @@
 import { App, MarkdownView, TFile, Notice } from 'obsidian';
+import { TimerData } from './types';
 import { nowSec, pauseData, stopData } from './timer';
-import { TIMER_RE, parse, extractTimerData, render, replaceTimer } from './editor';
+import { timerRegex, parse, extractTimerData, render, replaceTimer } from './editor';
+
+export function transformTimersInContent(
+    content: string,
+    refTime: number,
+    mutator: (data: TimerData, ref: number) => TimerData,
+    counter?: { count: number }
+): string {
+    return content.replace(
+        timerRegex(),
+        (...args) => {
+            const data = extractTimerData(args as unknown as RegExpExecArray);
+            if (data.state !== 'running') return args[0];
+            if (counter) counter.count++;
+            return render(mutator(data, refTime));
+        },
+    );
+}
 
 export function pauseTimersInContent(
     content: string,
     refTime: number,
     counter?: { count: number },
 ): string {
-    return content.replace(
-        new RegExp(TIMER_RE.source, 'g'),
-        (...args) => {
-            const data = extractTimerData(args as unknown as RegExpExecArray);
-            if (data.state !== 'running') return args[0];
-            if (counter) counter.count++;
-            return render(pauseData(data, refTime));
-        },
-    );
+    return transformTimersInContent(content, refTime, pauseData, counter);
 }
 
 export function pauseOpenEditorsSync(app: App, ref = nowSec()): Set<string> {
@@ -110,17 +120,12 @@ export async function stopAllRunningTimers(app: App, ref = nowSec()): Promise<nu
         if (!content.includes('|running|')) continue;
 
         try {
-            await app.vault.process(file, (content) =>
-                 content.replace(
-                    new RegExp(TIMER_RE.source, 'g'),
-                    (...args) => {
-                        const data = extractTimerData(args as unknown as RegExpExecArray);
-                        if (data.state !== 'running') return args[0];
-                        count++;
-                        return render(stopData(data, ref));
-                    },
-                ),
-            );
+            await app.vault.process(file, (content) => {
+                const counter = { count: 0 };
+                const res = transformTimersInContent(content, ref, stopData, counter);
+                count += counter.count;
+                return res;
+            });
         } catch (error) {
             console.error(`Timer: stop failed for ${file.path}`, error);
         }

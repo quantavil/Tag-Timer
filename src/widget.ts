@@ -15,15 +15,23 @@ import {
     nowSec,
     stopData,
     TIMER_MUTATED_EVENT,
+    playBeep,
 } from './timer';
-import { TIMER_RE, render, extractTimerData, computeRemovalRange } from './editor';
+import { TimerSettings } from './types';
+import { timerRegex, render, extractTimerData, computeRemovalRange } from './editor';
 import { addTimerMenuItems } from './menu';
 import { openTimeModal } from './timeModal';
 
 /* Module‑level app ref, set once from plugin.onload */
 let _app: App | null = null;
+let _settings: TimerSettings | null = null;
+
 export function setWidgetApp(app: App) {
     _app = app;
+}
+
+export function setWidgetSettings(s: TimerSettings) {
+    _settings = s;
 }
 
 interface LocatedTimer {
@@ -34,7 +42,7 @@ interface LocatedTimer {
 function locateTimer(view: EditorView, el: HTMLElement, id: string): LocatedTimer | null {
     const pos = view.posAtDOM(el);
     const line = view.state.doc.lineAt(pos);
-    const re = new RegExp(TIMER_RE.source, 'g');
+    const re = timerRegex();
     let m: RegExpExecArray | null;
 
     while ((m = re.exec(line.text)) !== null) {
@@ -104,6 +112,8 @@ class TimerWidget extends WidgetType {
             if (!range) return false;
 
             new Notice('Timer finished!');
+            if (_settings?.playCompletionSound) playBeep();
+            
             replaceLocatedTimer(view, range, stopData(this.data, nowSec()));
 
             if (this.interval !== null) {
@@ -178,7 +188,7 @@ function buildDecorations(view: EditorView): DecorationSet {
 
     for (const { from, to } of view.visibleRanges) {
         const text = view.state.doc.sliceString(from, to);
-        const re = new RegExp(TIMER_RE.source, 'g');
+        const re = timerRegex();
         let match: RegExpExecArray | null;
 
         while ((match = re.exec(text)) !== null) {
@@ -207,7 +217,7 @@ export const timerViewPlugin = ViewPlugin.fromClass(
         }
 
         update(update: ViewUpdate) {
-            if (update.docChanged || update.viewportChanged || update.selectionSet) {
+            if (update.docChanged || update.viewportChanged) {
                 this.decorations = buildDecorations(update.view);
             }
         }

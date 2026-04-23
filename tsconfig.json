@@ -5,11 +5,10 @@
         "module": "ESNext",
         "target": "ES2022",
         "allowJs": true,
-        "noImplicitAny": true,
         "moduleResolution": "Bundler",
         "importHelpers": true,
         "isolatedModules": true,
-        "strictNullChecks": true,
+        "strict": true,
         "lib": [
             "DOM",
             "ES2022"

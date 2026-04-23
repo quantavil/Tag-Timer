@@ -1,6 +1,6 @@
 import { App, TFile, Notice } from 'obsidian';
 import { TimerData } from './types';
-import { TIMER_RE, extractTimerData, render } from './editor';
+import { timerRegex, extractTimerData, render, computeRemovalRange } from './editor';
 import { TIMER_MUTATED_EVENT } from './timer';
 
 export function updateTimerInContent(
@@ -8,7 +8,7 @@ export function updateTimerInContent(
     targetId: string,
     mutator: (data: TimerData) => TimerData | null,
 ): string {
-    const re = new RegExp(TIMER_RE.source, 'g');
+    const re = timerRegex();
     let m: RegExpExecArray | null;
 
     while ((m = re.exec(content)) !== null) {
@@ -20,11 +20,8 @@ export function updateTimerInContent(
         const end = start + m[0].length;
 
         if (next === null) {
-            const hasSpaceBefore = start > 0 && content[start - 1] === ' ';
-            const hasSpaceAfter = end < content.length && content[end] === ' ';
-            const from = hasSpaceBefore ? start - 1 : start;
-            const to = hasSpaceAfter && !hasSpaceBefore ? end + 1 : end;
-            return content.slice(0, from) + content.slice(to);
+            const r = computeRemovalRange(content, start, end);
+            return content.slice(0, r.from) + content.slice(r.to);
         } else {
             return content.slice(0, start) + render(next) + content.slice(end);
         }
