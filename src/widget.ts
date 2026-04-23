@@ -21,6 +21,7 @@ import { TimerSettings } from './types';
 import { timerRegex, render, extractTimerData, computeRemovalRange } from './editor';
 import { addTimerMenuItems } from './menu';
 import { openTimeModal } from './timeModal';
+import { addLongPress } from './longPress';
 
 /* Module‑level app ref, set once from plugin.onload */
 let _app: App | null = null;
@@ -171,6 +172,8 @@ class TimerWidget extends WidgetType {
             event.stopPropagation();
             openMenu(event);
         };
+
+        addLongPress(el, openMenu);
 
         return el;
     }

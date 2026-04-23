@@ -4,6 +4,7 @@ import { renderDisplay, currentRemaining, nowSec, stopData, playBeep } from './t
 import { addTimerMenuItems } from './menu';
 import { openTimeModal } from './timeModal';
 import { mutateTimerInFile } from './controller';
+import { addLongPress } from './longPress';
 
 export class TimerRenderChild extends MarkdownRenderChild {
     interval: number | null = null;
@@ -99,6 +100,8 @@ export class TimerRenderChild extends MarkdownRenderChild {
             event.stopPropagation();
             this.openMenu(event);
         };
+
+        addLongPress(this.containerEl, (e) => this.openMenu(e));
     }
 
     onunload() {
