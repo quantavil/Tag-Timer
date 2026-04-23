@@ -12,3 +12,4 @@ yarn-error.log*
 !tsconfig.json
 !versions.json
 pm.md
+plan.md

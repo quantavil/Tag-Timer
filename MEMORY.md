@@ -11,6 +11,7 @@ src/
 ├── contextMenu.ts   # Context menu builder for editor selections.
 ├── controller.ts    # Unified mutation dispatcher spanning reading view and editor.
 ├── editor.ts        # Markdown line mutation utilities, Regex, parse definitions.
+├── longPress.ts     # Mobile long-press gesture utility.
 ├── menu.ts          # Shared dropdown menu utilities.
 ├── postProcessor.ts # Reading view widget processing (MarkdownRenderChild logic).
 ├── recovery.ts      # Automated saving/pausing operations and vault scans.
@@ -24,13 +25,13 @@ main.ts              # Primary Plugin entrypoint. Lean lifecycle manager.
 
 ## Conventions
 - **State Storage:** No independent filesystem JSON state; the plugin treats the Markdown raw string as the exclusive source of truth for timer states. 
-- **Type strictness:** Uses extensive inline regex validation and extracting parsed match groups arrays repeatedly.
+- **Type strictness:** Consolidated regex logic into `timerRegex()` factory in `editor.ts`. `strict: true` enabled in `tsconfig.json`.
 - **Dynamic tracking:** Discarded array-based timer tracking to rely on real-time asynchronous vault queries mapping directly to regex match signatures via `app.vault.process`.
 
 ## Dependencies & Setup
 - Bun lockfile used (`bun.lock` existing alongside `package.json`).
 - Dependencies successfully bumped to `@latest` (including `obsidian@latest`, `typescript@latest`).
-- Current version: `2.1.0`.
+- Current version: `2.2.0`.
 
 ## Critical Information
 - Known dependency install issue: "lockfile had changes, but lockfile is frozen". 
@@ -40,4 +41,10 @@ main.ts              # Primary Plugin entrypoint. Lean lifecycle manager.
 - Using `setInterval` per file parsing loop leads to memory pressure if many timers run simultaneously across unmounted editors. 
 - The module-level variable `_app` in `widget.ts` violates independent instantiation isolation.
 
+- **Stale State Management:** Context menu actions now re-parse the line on click to avoid stale index offset mutations.
+- **Mobile Support:** Implemented custom long-press gesture to trigger context menus on touch devices.
+- **Build Target:** Aligned ESBuild and TS targets to `ES2022`.
+
 ## Blunders
+- [2026-04-23] Transition to `strict` mode initially left redundant `noImplicitAny` flag; cleaned up in followup.
+- [2026-04-23] `versions.json` was untracked due to broad `.json` ignore rule; fixed with gitignore exception.
