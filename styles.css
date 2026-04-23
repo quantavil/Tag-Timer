@@ -87,3 +87,230 @@
         transition: none !important;
     }
 }
+
+/* ── Analytics Panel ─────────────────────────────────────────────── */
+
+.timer-analytics-root {
+    --ta-accent: var(--color-green-rgb);
+    font-size: var(--font-ui-small);
+    padding: 0;
+    overflow-y: auto;
+}
+
+.ta-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--size-4-2) var(--size-4-3);
+    border-bottom: 1px solid var(--background-modifier-border);
+    position: sticky;
+    top: 0;
+    background: var(--background-primary);
+    z-index: 1;
+}
+
+.ta-refresh {
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: var(--size-2-2);
+    border-radius: var(--radius-s);
+    display: flex;
+    align-items: center;
+}
+
+.ta-refresh:hover {
+    color: var(--text-normal);
+    background: var(--background-modifier-hover);
+}
+
+.ta-timestamp {
+    color: var(--text-faint);
+    font-size: var(--font-smallest);
+}
+
+.ta-body {
+    padding: var(--size-4-2) var(--size-4-3);
+}
+
+/* ── Sections ────────────────────────────────────────────────────── */
+
+.ta-section {
+    margin-bottom: var(--size-4-4);
+}
+
+.ta-section-title {
+    font-size: var(--font-smallest);
+    font-weight: var(--font-semibold);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding-bottom: var(--size-2-2);
+    border-bottom: 1px solid var(--background-modifier-border);
+    margin-bottom: var(--size-2-3);
+}
+
+/* ── Stat rows ───────────────────────────────────────────────────── */
+
+.ta-stat {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--size-2-1) 0;
+}
+
+.ta-stat-label {
+    color: var(--text-muted);
+}
+
+.ta-stat-value {
+    font-weight: var(--font-semibold);
+    font-variant-numeric: tabular-nums;
+    font-family: var(--font-monospace);
+}
+
+.ta-stat-value.ta-active {
+    color: var(--text-success);
+}
+
+/* ── File breakdown ──────────────────────────────────────────────── */
+
+.ta-file-row {
+    padding: var(--size-2-2) 0;
+    cursor: pointer;
+    border-radius: var(--radius-s);
+    transition: background 0.15s ease;
+}
+
+.ta-file-row:hover {
+    background: var(--background-modifier-hover);
+}
+
+.ta-file-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--size-2-1);
+}
+
+.ta-file-name {
+    color: var(--text-normal);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 70%;
+}
+
+.ta-file-time {
+    color: var(--text-muted);
+    font-family: var(--font-monospace);
+    font-variant-numeric: tabular-nums;
+    font-size: var(--font-smallest);
+    flex-shrink: 0;
+}
+
+/* ── Bar chart (shared) ──────────────────────────────────────────── */
+
+.ta-bar-track {
+    height: 6px;
+    border-radius: 3px;
+    background: var(--background-modifier-border);
+    overflow: hidden;
+    flex: 1;
+}
+
+.ta-bar {
+    height: 100%;
+    border-radius: 3px;
+    background: rgba(var(--ta-accent), 0.65);
+    transition: width 0.4s ease;
+    min-width: 0;
+}
+
+/* ── Weekly trend ────────────────────────────────────────────────── */
+
+.ta-week-row {
+    display: flex;
+    align-items: center;
+    gap: var(--size-4-2);
+    padding: var(--size-2-1) 0;
+}
+
+.ta-week-row.ta-today {
+    font-weight: var(--font-semibold);
+}
+
+.ta-week-day {
+    width: 2.2em;
+    flex-shrink: 0;
+    color: var(--text-muted);
+    font-size: var(--font-smallest);
+}
+
+.ta-today .ta-week-day {
+    color: var(--text-accent);
+}
+
+.ta-week-time {
+    width: 5.5em;
+    text-align: right;
+    flex-shrink: 0;
+    color: var(--text-muted);
+    font-family: var(--font-monospace);
+    font-variant-numeric: tabular-nums;
+    font-size: var(--font-smallest);
+}
+
+/* ── Recent sessions ─────────────────────────────────────────────── */
+
+.ta-recent-row {
+    display: flex;
+    align-items: center;
+    gap: var(--size-4-1);
+    padding: var(--size-2-2) 0;
+    cursor: pointer;
+    border-radius: var(--radius-s);
+    transition: background 0.15s ease;
+}
+
+.ta-recent-row:hover {
+    background: var(--background-modifier-hover);
+}
+
+.ta-recent-icon {
+    flex-shrink: 0;
+    font-size: 0.9em;
+}
+
+.ta-recent-duration {
+    font-family: var(--font-monospace);
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+    min-width: 4.5em;
+}
+
+.ta-recent-file {
+    color: var(--text-normal);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+}
+
+.ta-recent-ago {
+    color: var(--text-faint);
+    font-size: var(--font-smallest);
+    flex-shrink: 0;
+    text-align: right;
+}
+
+/* ── Empty state ─────────────────────────────────────────────────── */
+
+.ta-empty {
+    color: var(--text-muted);
+    text-align: center;
+    padding: var(--size-4-8) var(--size-4-4);
+    font-style: italic;
+    line-height: 1.6;
+}

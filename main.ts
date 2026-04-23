@@ -2,6 +2,7 @@ import {
     Plugin,
     MarkdownView,
     Notice,
+    WorkspaceLeaf,
 } from 'obsidian';
 import { TimerSettings } from './src/types';
 import { timerRegex, extractTimerData } from './src/editor';
@@ -12,12 +13,15 @@ import { handleCommand } from './src/commands';
 import { buildContextMenu } from './src/contextMenu';
 import { recoverRunningTimers, saveAllRunningTimers, pauseOpenEditorsSync, stopAllRunningTimers } from './src/recovery';
 import { TimerRenderChild } from './src/postProcessor';
+import { AnalyticsView, ANALYTICS_VIEW_TYPE } from './src/analytics/view';
 
 export default class TimerPlugin extends Plugin {
     settings!: TimerSettings;
     private beforeUnloadRef: (() => void) | null = null;
     private timerMutatedRef: ((evt: Event) => void) | null = null;
     private enforcingLimit = false;
+    private analyticsRegistered = false;
+    private analyticsRibbonIcon: HTMLElement | null = null;
 
     async onload() {
         await this.loadSettings();
@@ -179,6 +183,58 @@ export default class TimerPlugin extends Plugin {
         );
 
         this.addSettingTab(new TimerSettingTab(this.app, this));
+
+        // Register analytics if enabled
+        if (this.settings.enableAnalytics) {
+            this.registerAnalytics();
+        }
+    }
+
+    registerAnalytics(): void {
+        if (this.analyticsRegistered) return;
+        this.analyticsRegistered = true;
+
+        this.registerView(ANALYTICS_VIEW_TYPE, (leaf) => new AnalyticsView(leaf));
+
+        this.addCommand({
+            id: 'open-timer-analytics',
+            name: 'Open timer analytics',
+            checkCallback: (checking) => {
+                if (!this.settings.enableAnalytics) return false;
+                if (!checking) void this.activateAnalyticsView();
+                return true;
+            },
+        });
+
+        this.analyticsRibbonIcon = this.addRibbonIcon('bar-chart-2', 'Timer Analytics', () => {
+            if (this.settings.enableAnalytics) {
+                void this.activateAnalyticsView();
+            }
+        });
+        this.toggleAnalyticsRibbon(this.settings.enableAnalytics);
+    }
+
+    toggleAnalyticsRibbon(visible: boolean): void {
+        if (this.analyticsRibbonIcon) {
+            this.analyticsRibbonIcon.style.display = visible ? '' : 'none';
+        }
+    }
+
+    private async activateAnalyticsView(): Promise<void> {
+        const { workspace } = this.app;
+
+        let leaf: WorkspaceLeaf | null = null;
+        const leaves = workspace.getLeavesOfType(ANALYTICS_VIEW_TYPE);
+
+        if (leaves.length > 0) {
+            leaf = leaves[0];
+        } else {
+            leaf = workspace.getRightLeaf(false);
+            if (!leaf) return;
+            await leaf.setViewState({ type: ANALYTICS_VIEW_TYPE, active: true });
+        }
+
+        workspace.revealLeaf(leaf);
     }
 
     async onunload() {
@@ -193,6 +249,11 @@ export default class TimerPlugin extends Plugin {
         }
 
         await saveAllRunningTimers(this.app);
+
+        // Detach analytics views
+        this.app.workspace
+            .getLeavesOfType(ANALYTICS_VIEW_TYPE)
+            .forEach((leaf) => leaf.detach());
     }
 
     async loadSettings() {

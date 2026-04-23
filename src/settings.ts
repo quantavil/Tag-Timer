@@ -2,12 +2,14 @@ import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
 import { TimerSettings } from './types';
 import { formatDuration, parseDurationInput } from './timer';
 import type TimerPlugin from '../main';
+import { ANALYTICS_VIEW_TYPE } from './analytics/view';
 
 export const DEFAULT_SETTINGS: TimerSettings = {
     insertPosition: 'tail',
     lastActiveTime: 0,
     defaultCountdownSeconds: 25 * 60,
     playCompletionSound: false,
+    enableAnalytics: false,
 };
 
 export class TimerSettingTab extends PluginSettingTab {
@@ -89,5 +91,34 @@ export class TimerSettingTab extends PluginSettingTab {
                     }
                 });
             });
+
+        // ── Advanced ──
+        containerEl.createEl('h3', { text: 'Advanced' });
+
+        new Setting(containerEl)
+            .setName('Enable analytics panel')
+            .setDesc(
+                'Show a sidebar panel with time tracking analytics. ' +
+                'Requires reopening the analytics view after toggling.',
+            )
+            .addToggle((toggle) =>
+                toggle
+                    .setValue(this.plugin.settings.enableAnalytics)
+                    .onChange(async (v) => {
+                        this.plugin.settings.enableAnalytics = v;
+                        await this.plugin.saveSettings();
+
+                        if (v) {
+                            this.plugin.registerAnalytics();
+                            this.plugin.toggleAnalyticsRibbon(true);
+                        } else {
+                            this.plugin.toggleAnalyticsRibbon(false);
+                            // Detach any open analytics leaves
+                            this.app.workspace
+                                .getLeavesOfType(ANALYTICS_VIEW_TYPE)
+                                .forEach((leaf) => leaf.detach());
+                        }
+                    }),
+            );
     }
 }

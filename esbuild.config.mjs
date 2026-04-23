@@ -38,7 +38,7 @@ const context = await esbuild.context({
     logLevel: "info",
     sourcemap: prod ? false : "inline",
     treeShaking: true,
-    outdir: "dist",
+    outfile: "main.js",
     minify: prod,
 });
 
@@ -46,9 +46,11 @@ if (prod) {
     await context.rebuild();
     fs.copyFileSync("manifest.json", "dist/manifest.json");
     fs.copyFileSync("styles.css", "dist/styles.css");
-    process.exit(0);
+    fs.copyFileSync("main.js", "dist/main.js");
+    await context.dispose();
 } else {
     await context.watch();
     fs.copyFileSync("manifest.json", "dist/manifest.json");
     fs.copyFileSync("styles.css", "dist/styles.css");
+    fs.copyFileSync("main.js", "dist/main.js");
 }

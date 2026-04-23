@@ -15,4 +15,5 @@ export interface TimerSettings {
     lastActiveTime: number;
     defaultCountdownSeconds: number;
     playCompletionSound: boolean;
+    enableAnalytics: boolean;
 }

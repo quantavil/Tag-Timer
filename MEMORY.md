@@ -7,6 +7,10 @@ Obsidian plugin that injects and manages inline timers within markdown notes. Re
 
 ```
 src/
+├── analytics/
+│   ├── scanner.ts   # Vault-wide timer tag scanner + aggregation into VaultAnalytics.
+│   ├── renderer.ts  # DOM builder for sidebar panel (stats, file bars, weekly trend, recent).
+│   └── view.ts      # AnalyticsView (ItemView) + ANALYTICS_VIEW_TYPE constant.
 ├── commands.ts      # Command handlers for interacting with timers.
 ├── contextMenu.ts   # Context menu builder for editor selections.
 ├── controller.ts    # Unified mutation dispatcher spanning reading view and editor.
