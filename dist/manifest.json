@@ -1,9 +1,0 @@
-{
-    "id": "tag-timer",
-    "version": "2.1.0",
-    "minAppVersion": "1.4.0",
-    "name": "Tag Timer",
-    "author": "quantavil",
-    "description": "Add inline timers to any line in your notes.",
-    "isDesktopOnly": false
-}
