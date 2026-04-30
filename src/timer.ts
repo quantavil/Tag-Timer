@@ -197,19 +197,21 @@ export function playCompletionSound(type: SoundType = 'chime') {
                 setTimeout(() => ctx.close(), 600);
                 break;
             }
-            case 'synth': {
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(440, now);
-                osc.frequency.exponentialRampToValueAtTime(880, now + 0.3);
-                gain.gain.setValueAtTime(0, now);
-                gain.gain.linearRampToValueAtTime(0.2, now + 0.05);
-                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
-                osc.connect(gain).connect(ctx.destination);
-                osc.start(now);
-                osc.stop(now + 0.5);
-                setTimeout(() => ctx.close(), 600);
+            case 'marimba': {
+                const freqs = [392.00, 523.25, 659.25]; // G4, C5, E5 arpeggio
+                freqs.forEach((freq, i) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, now);
+                    gain.gain.setValueAtTime(0, now);
+                    gain.gain.linearRampToValueAtTime(0.4, now + 0.01 + i * 0.15);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3 + i * 0.15);
+                    osc.connect(gain).connect(ctx.destination);
+                    osc.start(now + i * 0.15);
+                    osc.stop(now + 0.4 + i * 0.15);
+                });
+                setTimeout(() => ctx.close(), 1000);
                 break;
             }
         }

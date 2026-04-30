@@ -14,7 +14,7 @@ A minimal, high-performance Obsidian plugin for adding inline timers and countdo
   - `Ctrl/Cmd+Shift+D`: Delete Timer on current line
 - **Countdowns & Stopwatches:** Choose between open-ended stopwatches or goal-oriented countdowns with a configurable default duration.
 - **Analytics Panel:** A dedicated sidebar view tracking your time. Includes daily/weekly totals, streak tracking, file-by-file time breakdowns, a weekly trend chart, and a history of recent sessions.
-- **Audio & Visual Notifications:** Choose from multiple completion sounds (`chime`, `bell`, `beep`, `digital`, `synth`) and visual notifications when a countdown reaches zero.
+- **Audio & Visual Notifications:** Choose from multiple completion sounds (`chime`, `bell`, `beep`, `digital`, `marimba`) and visual notifications when a countdown reaches zero.
 - **Clickable Widgets & Mobile Support:** Interactive badges in both **Live Preview** and **Reading View**. Click, right-click, or **long-press (on mobile)** to open the context menu.
 - **Rich Context Menu:** Access Pause, Resume, Stop, Reset, Delete, or **Change Time** manually directly from the timer badge.
 - **Auto-Restore & Background Expiry:** Running timers are automatically paused upon plugin unload and recovered when restarted. Countdowns cleanly expire in the background even if the note is closed or rendered in a Canvas.
@@ -57,7 +57,7 @@ Need to adjust the time? Use the **Change timer/countdown time** command or righ
 
 - **Insert position:** Where new timers appear on a line — end of line (default), start of line, or at cursor.
 - **Play sound on completion:** Toggle text-editor friendly sounds when countdowns finish.
-- **Sound type:** Choose your preferred alarm (`Soft Chime`, `Gentle Bell`, `Classic Beep`, `Digital Alarm`, `Synth Pulse`).
+- **Sound type:** Choose your preferred alarm (`Soft Chime`, `Gentle Bell`, `Classic Beep`, `Digital Alarm`, `Soft Marimba`).
 - **Default countdown:** Duration used when creating a new countdown with `Ctrl/Cmd+Shift+C`. Default: 25:00.
 - **Enable analytics panel:** Toggle the time-tracking sidebar panel.
 

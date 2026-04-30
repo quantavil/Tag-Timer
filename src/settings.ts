@@ -64,7 +64,7 @@ export class TimerSettingTab extends PluginSettingTab {
                     .addOption('bell', 'Gentle Bell')
                     .addOption('beep', 'Classic Beep')
                     .addOption('digital', 'Digital Alarm')
-                    .addOption('synth', 'Synth Pulse')
+                    .addOption('marimba', 'Soft Marimba')
                     .setValue(this.plugin.settings.soundType)
                     .onChange(async (v) => {
                         this.plugin.settings.soundType =
