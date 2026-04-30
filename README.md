@@ -6,6 +6,35 @@
 
 A minimal, high-performance Obsidian plugin for adding inline timers and countdowns directly into your notes.
 
+## Usage
+
+### Hotkeys & Interactions
+
+Position your cursor anywhere on a line with a timer, or interact directly with the badge:
+
+- **Toggle (Stopwatch):** `Ctrl/Cmd+Shift+S` — Creates a new stopwatch if none exists, otherwise pauses/resumes.
+- **Toggle (Countdown):** `Ctrl/Cmd+Shift+C` — Creates a new countdown (default: 25 min) if none exists, otherwise pauses/resumes.
+- **Delete:** `Ctrl/Cmd+Shift+D` — Removes the timer tag from the current line.
+- **Stop All:** Search for "Stop all running timers" in the Command Palette (`Cmd/Ctrl+P`).
+- **Menu:** Click, right-click, or long-press the badge to open the context menu.
+
+### Using the Analytics Panel
+
+Tag Timer includes a dedicated sidebar panel to visualize your time-tracking habits.
+1. **Enable it:** Go to Tag Timer settings and toggle on **Enable analytics panel**.
+2. **Open it:** Once enabled, click the clock icon in the left ribbon menu, or run the command **"Open Tag Timer Analytics"** via the Command Palette.
+3. **What it tracks:** The panel provides a real-time overview of your daily and weekly totals, your productivity streak, a top-10 breakdown of time spent per file, and a clickable history of your recent sessions.
+
+### Timer States
+
+1. **Running (⌛):** Actively ticking. The badge features a smooth, breathing glow animation.
+2. **Paused (⏳):** Temporarily halted. Resuming picks up from the last recorded elapsed time.
+3. **Stopped (⏹️):** Archive state. Retains the final time display. Resuming a stopped timer resets elapsed to zero and starts fresh.
+
+### Editing Time
+
+Need to adjust the time? Use the **Change timer/countdown time** command or right-click the badge and select **Change time**. Accepts `mm:ss`, `hh:mm:ss`, or a plain number (interpreted as minutes).
+
 ## Features
 
 - **Lightning Fast Interaction:**
@@ -31,29 +60,7 @@ You can install beta versions of Tag Timer using the [BRAT](https://github.com/T
 4. Enter the GitHub repository URL: `quantavil/Tag-Timer`.
 5. Go to the **Community Plugins** tab, reload the plugins list, and enable **Tag Timer**.
 
-## Usage
-
-### Hotkeys & Interactions
-
-Position your cursor anywhere on a line with a timer, or interact directly with the badge:
-
-- **Toggle (Stopwatch):** `Ctrl/Cmd+Shift+S` — Creates a new stopwatch if none exists, otherwise pauses/resumes.
-- **Toggle (Countdown):** `Ctrl/Cmd+Shift+C` — Creates a new countdown (default: 25 min) if none exists, otherwise pauses/resumes.
-- **Delete:** `Ctrl/Cmd+Shift+D` — Removes the timer tag from the current line.
-- **Stop All:** Search for "Stop all running timers" in the Command Palette (`Cmd/Ctrl+P`).
-- **Menu:** Click, right-click, or long-press the badge to open the context menu.
-
-### Timer States
-
-1. **Running (⌛):** Actively ticking. The badge features a smooth, breathing glow animation.
-2. **Paused (⏳):** Temporarily halted. Resuming picks up from the last recorded elapsed time.
-3. **Stopped (⏹️):** Archive state. Retains the final time display. Resuming a stopped timer resets elapsed to zero and starts fresh.
-
-### Editing Time
-
-Need to adjust the time? Use the **Change timer/countdown time** command or right-click the badge and select **Change time**. Accepts `mm:ss`, `hh:mm:ss`, or a plain number (interpreted as minutes).
-
-### Settings
+## Settings
 
 - **Insert position:** Where new timers appear on a line — end of line (default), start of line, or at cursor.
 - **Play sound on completion:** Toggle text-editor friendly sounds when countdowns finish.
