@@ -1,5 +1,6 @@
 export type TimerState = 'running' | 'paused' | 'stopped';
 export type TimerKind = 'stopwatch' | 'countdown';
+export type SoundType = 'chime' | 'bell' | 'beep' | 'none';
 
 export interface TimerData {
     id: string;
@@ -15,5 +16,6 @@ export interface TimerSettings {
     lastActiveTime: number;
     defaultCountdownSeconds: number;
     playCompletionSound: boolean;
+    soundType: SoundType;
     enableAnalytics: boolean;
 }

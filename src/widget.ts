@@ -15,7 +15,7 @@ import {
     nowSec,
     stopData,
     TIMER_MUTATED_EVENT,
-    playBeep,
+    playCompletionSound,
 } from './timer';
 import { TimerSettings } from './types';
 import { timerRegex, render, extractTimerData, computeRemovalRange } from './editor';
@@ -121,7 +121,7 @@ class TimerWidget extends WidgetType {
             if (!range) return false;
 
             new Notice('Timer finished!');
-            if (_settings?.playCompletionSound) playBeep();
+            if (_settings?.playCompletionSound) playCompletionSound(_settings.soundType);
             
             replaceLocatedTimer(view, range, stopData(this.data, nowSec()));
 

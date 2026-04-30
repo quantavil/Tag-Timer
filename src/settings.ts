@@ -9,6 +9,7 @@ export const DEFAULT_SETTINGS: TimerSettings = {
     lastActiveTime: 0,
     defaultCountdownSeconds: 25 * 60,
     playCompletionSound: false,
+    soundType: 'chime',
     enableAnalytics: false,
 };
 
@@ -44,12 +45,29 @@ export class TimerSettingTab extends PluginSettingTab {
 
         new Setting(containerEl)
             .setName('Play sound on completion')
-            .setDesc('Play a brief text-editor friendly beep when a countdown finishes.')
+            .setDesc('Play a brief text-editor friendly sound when a countdown finishes.')
             .addToggle((toggle) =>
                 toggle
                     .setValue(this.plugin.settings.playCompletionSound)
                     .onChange(async (v) => {
                         this.plugin.settings.playCompletionSound = v;
+                        await this.plugin.saveSettings();
+                    }),
+            );
+
+        new Setting(containerEl)
+            .setName('Sound type')
+            .setDesc('Which sound to play on countdown completion.')
+            .addDropdown((dd) =>
+                dd
+                    .addOption('chime', 'Soft Chime')
+                    .addOption('bell', 'Gentle Bell')
+                    .addOption('beep', 'Classic Beep')
+                    .addOption('none', 'None')
+                    .setValue(this.plugin.settings.soundType)
+                    .onChange(async (v) => {
+                        this.plugin.settings.soundType =
+                            v as TimerSettings['soundType'];
                         await this.plugin.saveSettings();
                     }),
             );

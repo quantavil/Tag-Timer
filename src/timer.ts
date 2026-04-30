@@ -1,4 +1,4 @@
-import { TimerData } from './types';
+import { TimerData, SoundType } from './types';
 
 export const TIMER_MUTATED_EVENT = 'obsidian-timer-mutated';
 
@@ -115,17 +115,74 @@ export function parseDurationInput(raw: string): number | null {
     return null;
 }
 
-export function playBeep() {
+export function playCompletionSound(type: SoundType = 'chime') {
+    if (type === 'none') return;
+
     try {
-        const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-        if (!AudioContext) return;
-        const ctx = new AudioContext();
-        const osc = ctx.createOscillator();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(880, ctx.currentTime);
-        osc.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.1);
+        const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+        if (!Ctx) return;
+        const ctx = new Ctx();
+        const now = ctx.currentTime;
+
+        switch (type) {
+            case 'chime': {
+                const freqs = [523.25, 659.25, 783.99]; // C5, E5, G5
+                freqs.forEach((freq, i) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, now);
+                    gain.gain.setValueAtTime(0, now);
+                    gain.gain.linearRampToValueAtTime(0.3, now + 0.02);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4 + i * 0.15);
+                    osc.connect(gain).connect(ctx.destination);
+                    osc.start(now + i * 0.08);
+                    osc.stop(now + 0.6 + i * 0.15);
+                });
+                setTimeout(() => ctx.close(), 1200);
+                break;
+            }
+            case 'bell': {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(830, now);
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(0.35, now + 0.01);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
+                osc.connect(gain).connect(ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.8);
+
+                const h = ctx.createOscillator();
+                const hg = ctx.createGain();
+                h.type = 'sine';
+                h.frequency.setValueAtTime(1660, now);
+                hg.gain.setValueAtTime(0, now);
+                hg.gain.linearRampToValueAtTime(0.12, now + 0.01);
+                hg.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+                h.connect(hg).connect(ctx.destination);
+                h.start(now);
+                h.stop(now + 0.5);
+
+                setTimeout(() => ctx.close(), 1000);
+                break;
+            }
+            case 'beep': {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, now);
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(0.25, now + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+                osc.connect(gain).connect(ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.25);
+                setTimeout(() => ctx.close(), 400);
+                break;
+            }
+        }
     } catch {}
 }
 
