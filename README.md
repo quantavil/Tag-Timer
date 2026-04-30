@@ -12,15 +12,14 @@ A minimal, high-performance Obsidian plugin for adding inline timers and countdo
   - `Ctrl/Cmd+Shift+S`: Toggle Stopwatch (Start / Pause / Resume)
   - `Ctrl/Cmd+Shift+C`: Toggle Countdown (Start / Pause / Resume)
   - `Ctrl/Cmd+Shift+D`: Delete Timer on current line
-- **Completion Notifications:** Visual notifications (Obsidian Notice) triggered when a countdown reaches zero.
-- **Stop All Command:** A global command to stop all running timers across your entire vault (Command Palette only, no default hotkey).
 - **Countdowns & Stopwatches:** Choose between open-ended stopwatches or goal-oriented countdowns with a configurable default duration.
-- **Clickable Widgets:** Interactive badges in both **Live Preview** and **Reading View**. Click or right-click to open the context menu.
-- **Rich Context Menu:** Right-click any timer to access Pause, Resume, Stop, Reset, Delete, or **Change Time** manually.
-- **Auto-Restore & Crash Protection:** Running timers are automatically paused upon plugin unload and recovered when restarted. Safe across devices and through app crashes.
-- **One Timer Per Line:** Enforces a clean layout by preventing multiple timers on the same line.
-- **Native Integration:** Uses Obsidian's internal CSS variables to perfectly adapt to your theme (Light/Dark). Fully compatible with Obsidian v1.4.0+.
-- **Zero External Dependencies:** Built with pure TypeScript and CodeMirror 6 for maximum stability and speed.
+- **Analytics Panel:** A dedicated sidebar view tracking your time. Includes daily/weekly totals, streak tracking, file-by-file time breakdowns, a weekly trend chart, and a history of recent sessions.
+- **Audio & Visual Notifications:** Choose from multiple completion sounds (`chime`, `bell`, `beep`, `digital`, `synth`) and visual notifications when a countdown reaches zero.
+- **Clickable Widgets & Mobile Support:** Interactive badges in both **Live Preview** and **Reading View**. Click, right-click, or **long-press (on mobile)** to open the context menu.
+- **Rich Context Menu:** Access Pause, Resume, Stop, Reset, Delete, or **Change Time** manually directly from the timer badge.
+- **Auto-Restore & Background Expiry:** Running timers are automatically paused upon plugin unload and recovered when restarted. Countdowns cleanly expire in the background even if the note is closed or rendered in a Canvas.
+- **Accessible (ARIA):** Full screen-reader support with dynamically updating ARIA labels on all timer widgets.
+- **Native Integration:** Uses Obsidian's internal CSS variables to perfectly adapt to your theme (Light/Dark).
 
 ## Installation via BRAT
 
@@ -42,11 +41,11 @@ Position your cursor anywhere on a line with a timer, or interact directly with 
 - **Toggle (Countdown):** `Ctrl/Cmd+Shift+C` — Creates a new countdown (default: 25 min) if none exists, otherwise pauses/resumes.
 - **Delete:** `Ctrl/Cmd+Shift+D` — Removes the timer tag from the current line.
 - **Stop All:** Search for "Stop all running timers" in the Command Palette (`Cmd/Ctrl+P`).
-- **Menu:** Click or right-click the badge to open the context menu.
+- **Menu:** Click, right-click, or long-press the badge to open the context menu.
 
 ### Timer States
 
-1. **Running (⏳):** Actively ticking. The badge has a breathing glow animation.
+1. **Running (⌛):** Actively ticking. The badge features a smooth, breathing glow animation.
 2. **Paused (⏳):** Temporarily halted. Resuming picks up from the last recorded elapsed time.
 3. **Stopped (⏹️):** Archive state. Retains the final time display. Resuming a stopped timer resets elapsed to zero and starts fresh.
 
@@ -57,14 +56,17 @@ Need to adjust the time? Use the **Change timer/countdown time** command or righ
 ### Settings
 
 - **Insert position:** Where new timers appear on a line — end of line (default), start of line, or at cursor.
+- **Play sound on completion:** Toggle text-editor friendly sounds when countdowns finish.
+- **Sound type:** Choose your preferred alarm (`Soft Chime`, `Gentle Bell`, `Classic Beep`, `Digital Alarm`, `Synth Pulse`).
 - **Default countdown:** Duration used when creating a new countdown with `Ctrl/Cmd+Shift+C`. Default: 25:00.
+- **Enable analytics panel:** Toggle the time-tracking sidebar panel.
 
 ## Developer Information
 
 ### Architecture
 - **Rendering:** Uses CodeMirror 6 `ViewPlugin` and `WidgetType` for efficient, non-destructive UI overlays in Live Preview. `MarkdownPostProcessor` + `MarkdownRenderChild` for Reading View.
 - **Data Storage:** Timers are stored as small, text-based tags in your markdown: `⏳[id|kind|state|elapsed|startedAt|target]`.
-- **State Management:** No external state files. The markdown text is the single source of truth. Recovery works by scanning vault files on plugin load.
+- **State Management:** No external state files. The markdown text is the single source of truth. Background vault scanners periodically sync and expire timers dynamically without memory leaks.
 
 ### Build Instructions
 

@@ -35,7 +35,7 @@ main.ts              # Primary Plugin entrypoint. Lean lifecycle manager.
 ## Dependencies & Setup
 - Bun lockfile used (`bun.lock` existing alongside `package.json`).
 - Dependencies successfully bumped to `@latest` (including `obsidian@latest`, `typescript@latest`).
-- Current version: `2.2.0`.
+- Current version: `3.0.0`.
 
 ## Critical Information
 - Known dependency install issue: "lockfile had changes, but lockfile is frozen". 

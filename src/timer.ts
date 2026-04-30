@@ -116,7 +116,6 @@ export function parseDurationInput(raw: string): number | null {
 }
 
 export function playCompletionSound(type: SoundType = 'chime') {
-    if (type === 'none') return;
 
     try {
         const Ctx = window.AudioContext || (window as any).webkitAudioContext;
@@ -182,6 +181,37 @@ export function playCompletionSound(type: SoundType = 'chime') {
                 setTimeout(() => ctx.close(), 400);
                 break;
             }
+            case 'digital': {
+                for (let i = 0; i < 3; i++) {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(1200, now);
+                    gain.gain.setValueAtTime(0, now);
+                    gain.gain.linearRampToValueAtTime(0.1, now + i * 0.15);
+                    gain.gain.linearRampToValueAtTime(0, now + 0.1 + i * 0.15);
+                    osc.connect(gain).connect(ctx.destination);
+                    osc.start(now + i * 0.15);
+                    osc.stop(now + 0.1 + i * 0.15);
+                }
+                setTimeout(() => ctx.close(), 600);
+                break;
+            }
+            case 'synth': {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(440, now);
+                osc.frequency.exponentialRampToValueAtTime(880, now + 0.3);
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(0.2, now + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+                osc.connect(gain).connect(ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.5);
+                setTimeout(() => ctx.close(), 600);
+                break;
+            }
         }
     } catch {}
 }
@@ -202,7 +232,7 @@ export function renderDisplay(data: TimerData): string {
         icon = '⏳';
     }
 
-    return `${icon} ${formatDuration(shown)}`;
+    return `${icon}${formatDuration(shown)}`;
 }
 
 export function ariaLabel(data: TimerData): string {
