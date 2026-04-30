@@ -9,9 +9,9 @@ A minimal, high-performance Obsidian plugin for adding inline timers and countdo
 ## Features
 
 - **Lightning Fast Interaction:**
-  - `Alt+S`: Toggle Stopwatch (Start / Pause / Resume)
-  - `Alt+C`: Toggle Countdown (Start / Pause / Resume)
-  - `Alt+D`: Delete Timer on current line
+  - `Ctrl/Cmd+Shift+S`: Toggle Stopwatch (Start / Pause / Resume)
+  - `Ctrl/Cmd+Shift+C`: Toggle Countdown (Start / Pause / Resume)
+  - `Ctrl/Cmd+Shift+D`: Delete Timer on current line
 - **Completion Notifications:** Visual notifications (Obsidian Notice) triggered when a countdown reaches zero.
 - **Stop All Command:** A global command to stop all running timers across your entire vault (Command Palette only, no default hotkey).
 - **Countdowns & Stopwatches:** Choose between open-ended stopwatches or goal-oriented countdowns with a configurable default duration.
@@ -38,9 +38,9 @@ You can install beta versions of Tag Timer using the [BRAT](https://github.com/T
 
 Position your cursor anywhere on a line with a timer, or interact directly with the badge:
 
-- **Toggle (Stopwatch):** `Alt+S` — Creates a new stopwatch if none exists, otherwise pauses/resumes.
-- **Toggle (Countdown):** `Alt+C` — Creates a new countdown (default: 25 min) if none exists, otherwise pauses/resumes.
-- **Delete:** `Alt+D` — Removes the timer tag from the current line.
+- **Toggle (Stopwatch):** `Ctrl/Cmd+Shift+S` — Creates a new stopwatch if none exists, otherwise pauses/resumes.
+- **Toggle (Countdown):** `Ctrl/Cmd+Shift+C` — Creates a new countdown (default: 25 min) if none exists, otherwise pauses/resumes.
+- **Delete:** `Ctrl/Cmd+Shift+D` — Removes the timer tag from the current line.
 - **Stop All:** Search for "Stop all running timers" in the Command Palette (`Cmd/Ctrl+P`).
 - **Menu:** Click or right-click the badge to open the context menu.
 
@@ -57,7 +57,7 @@ Need to adjust the time? Use the **Change timer/countdown time** command or righ
 ### Settings
 
 - **Insert position:** Where new timers appear on a line — end of line (default), start of line, or at cursor.
-- **Default countdown:** Duration used when creating a new countdown with `Alt+C`. Default: 25:00.
+- **Default countdown:** Duration used when creating a new countdown with `Ctrl/Cmd+Shift+C`. Default: 25:00.
 
 ## Developer Information
 

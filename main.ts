@@ -119,7 +119,7 @@ export default class TimerPlugin extends Plugin {
         this.addCommand({
             id: 'toggle-timer',
             name: 'Toggle timer',
-            hotkeys: [{ modifiers: ['Alt'], key: 's' }],
+            hotkeys: [{ modifiers: ['Mod', 'Shift'], key: 's' }],
             editorCallback: (e, v) =>
                 handleCommand(this.app, this.settings, e, v as MarkdownView, 'toggle', 'stopwatch'),
         });
@@ -127,7 +127,7 @@ export default class TimerPlugin extends Plugin {
         this.addCommand({
             id: 'toggle-countdown',
             name: 'Start/pause countdown',
-            hotkeys: [{ modifiers: ['Alt'], key: 'c' }],
+            hotkeys: [{ modifiers: ['Mod', 'Shift'], key: 'c' }],
             editorCallback: (e, v) =>
                 handleCommand(this.app, this.settings, e, v as MarkdownView, 'toggle', 'countdown'),
         });
@@ -165,7 +165,7 @@ export default class TimerPlugin extends Plugin {
         this.addCommand({
             id: 'delete-timer',
             name: 'Delete timer',
-            hotkeys: [{ modifiers: ['Alt'], key: 'd' }],
+            hotkeys: [{ modifiers: ['Mod', 'Shift'], key: 'd' }],
             editorCallback: (e, v) =>
                 handleCommand(this.app, this.settings, e, v as MarkdownView, 'delete'),
         });
