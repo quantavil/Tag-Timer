@@ -11,7 +11,7 @@ import { TIMER_MUTATED_EVENT, nowSec } from './src/timer';
 import { DEFAULT_SETTINGS, TimerSettingTab } from './src/settings';
 import { handleCommand } from './src/commands';
 import { buildContextMenu } from './src/contextMenu';
-import { recoverRunningTimers, saveAllRunningTimers, pauseOpenEditorsSync, stopAllRunningTimers } from './src/recovery';
+import { recoverRunningTimers, saveAllRunningTimers, pauseOpenEditorsSync, stopAllRunningTimers, expireFinishedCountdowns } from './src/recovery';
 import { TimerRenderChild } from './src/postProcessor';
 import { AnalyticsView, ANALYTICS_VIEW_TYPE } from './src/analytics/view';
 
@@ -31,11 +31,12 @@ export default class TimerPlugin extends Plugin {
 
         await recoverRunningTimers(this.app, this.settings.lastActiveTime);
 
-        // Keep lastActiveTime up to date for recovery
+        // Keep lastActiveTime up to date for recovery and expire finished countdowns
         this.registerInterval(
             window.setInterval(() => {
                 this.settings.lastActiveTime = nowSec();
                 void this.saveSettings();
+                void expireFinishedCountdowns(this.app);
             }, 30_000),
         );
 

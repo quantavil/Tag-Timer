@@ -82,8 +82,9 @@ function removeLocatedTimer(view: EditorView, range: LocatedTimer) {
 
 class TimerWidget extends WidgetType {
     private interval: number | null = null;
+    private isFirstRender = true;
 
-    constructor(readonly data: TimerData) {
+    constructor(public data: TimerData) {
         super();
     }
 
@@ -109,6 +110,13 @@ class TimerWidget extends WidgetType {
             if (this.data.kind !== 'countdown' || this.data.state !== 'running') return false;
             if (currentRemaining(this.data) > 0) return false;
 
+            if (this.isFirstRender) {
+                // Expired while closed. Prevent file mutation during read/render phase.
+                // Let the background expiry scanner handle the file write.
+                this.data = stopData(this.data, nowSec());
+                return false;
+            }
+
             const range = locate();
             if (!range) return false;
 
@@ -127,6 +135,7 @@ class TimerWidget extends WidgetType {
 
         const update = () => {
             if (finishCountdownIfNeeded()) return;
+            this.isFirstRender = false;
             el.className = `timer-badge timer-${this.data.kind} timer-${this.data.state}`;
             el.textContent = renderDisplay(this.data);
         };

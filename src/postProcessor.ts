@@ -9,6 +9,7 @@ import { addLongPress } from './longPress';
 export class TimerRenderChild extends MarkdownRenderChild {
     interval: number | null = null;
     private finishing = false;
+    private isFirstRender = true;
 
     constructor(
         containerEl: HTMLElement,
@@ -38,15 +39,22 @@ export class TimerRenderChild extends MarkdownRenderChild {
             this.data.state === 'running' &&
             currentRemaining(this.data) === 0
         ) {
-            this.finishing = true;
-            new Notice('Timer finished!');
-            if (this.settings.playCompletionSound) playBeep();
-            void this.mutate((d) => stopData(d, nowSec())).finally(() => {
-                this.finishing = false;
-            });
-            return;
+            if (this.isFirstRender) {
+                // Expired while closed. Prevent file mutation during read/render phase (crucial for Canvas embeds).
+                // Let the background expiry scanner handle the file write.
+                this.data = stopData(this.data, nowSec());
+            } else {
+                this.finishing = true;
+                new Notice('Timer finished!');
+                if (this.settings.playCompletionSound) playBeep();
+                void this.mutate((d) => stopData(d, nowSec())).finally(() => {
+                    this.finishing = false;
+                });
+                return;
+            }
         }
 
+        this.isFirstRender = false;
         this.containerEl.className = `timer-badge timer-${this.data.kind} timer-${this.data.state}`;
         this.containerEl.textContent = renderDisplay(this.data);
         this.syncInterval();

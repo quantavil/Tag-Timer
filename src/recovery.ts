@@ -1,6 +1,6 @@
 import { App, MarkdownView, TFile, Notice } from 'obsidian';
 import { TimerData } from './types';
-import { nowSec, pauseData, stopData } from './timer';
+import { nowSec, pauseData, stopData, currentRemaining } from './timer';
 import { timerRegex, parse, extractTimerData, render, replaceTimer } from './editor';
 
 export function transformTimersInContent(
@@ -131,5 +131,60 @@ export async function stopAllRunningTimers(app: App, ref = nowSec()): Promise<nu
         }
     }
     
+    return count;
+}
+
+/**
+ * Background scan: find running countdown timers that have expired
+ * (remaining time <= 0) and transition them to stopped.
+ * Prevents stale "running" state when note is not open during expiry.
+ */
+export async function expireFinishedCountdowns(app: App, ref = nowSec()): Promise<number> {
+    let count = 0;
+
+    const files = app.vault.getMarkdownFiles();
+    for (const file of files) {
+        const content = await app.vault.cachedRead(file);
+        if (!content.includes('|running|')) continue;
+
+        // Check if any running countdown in this file has expired
+        const re = timerRegex();
+        let hasExpired = false;
+        let m: RegExpExecArray | null;
+
+        while ((m = re.exec(content)) !== null) {
+            const data = extractTimerData(m);
+            if (
+                data.state === 'running' &&
+                data.kind === 'countdown' &&
+                currentRemaining(data, ref) === 0
+            ) {
+                hasExpired = true;
+                break;
+            }
+        }
+
+        if (!hasExpired) continue;
+
+        try {
+            await app.vault.process(file, (c) =>
+                c.replace(timerRegex(), (...args) => {
+                    const data = extractTimerData(args as unknown as RegExpExecArray);
+                    if (
+                        data.state === 'running' &&
+                        data.kind === 'countdown' &&
+                        currentRemaining(data, ref) === 0
+                    ) {
+                        count++;
+                        return render(stopData(data, ref));
+                    }
+                    return args[0];
+                }),
+            );
+        } catch (error) {
+            console.error(`Timer: expire failed for ${file.path}`, error);
+        }
+    }
+
     return count;
 }

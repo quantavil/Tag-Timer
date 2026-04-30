@@ -52,3 +52,4 @@ main.ts              # Primary Plugin entrypoint. Lean lifecycle manager.
 ## Blunders
 - [2026-04-23] Transition to `strict` mode initially left redundant `noImplicitAny` flag; cleaned up in followup.
 - [2026-04-23] `versions.json` was untracked due to broad `.json` ignore rule; fixed with gitignore exception.
+- [2026-04-30] Missing background expiry check for countdowns caused stale "running" states when notes were closed, leading to "Failed to open" and Canvas rendering errors due to `vault.process` sync conflicts. Fixed by adding a 30s background scan `expireFinishedCountdowns`.

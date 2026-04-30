@@ -29,13 +29,6 @@ export interface VaultAnalytics {
     recentSessions: TimerSession[];
 }
 
-function effectiveTime(data: TimerData): number {
-    if (data.kind === 'countdown') {
-        return Math.min(data.elapsed, Math.max(0, data.duration));
-    }
-    return data.elapsed;
-}
-
 function startOfDayEpoch(date: Date): number {
     const d = new Date(date);
     d.setHours(0, 0, 0, 0);
