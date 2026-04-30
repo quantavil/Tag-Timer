@@ -9,7 +9,8 @@
     display: inline-block;
     user-select: none;
     cursor: pointer;
-    transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease,
+                color 0.3s ease, background 0.3s ease, border-color 0.3s ease;
     line-height: 1.3;
     vertical-align: baseline;
     white-space: nowrap;
@@ -41,12 +42,24 @@
     border: 1px solid rgba(var(--color-orange-rgb), 0.4);
 }
 
+.timer-badge.timer-countdown.timer-paused {
+    color: var(--text-accent);
+    background: rgba(var(--color-blue-rgb), 0.12);
+    border: 1px solid rgba(var(--color-blue-rgb), 0.35);
+}
+
 /* ── Stopped ─────────────────────────────────────────────────────── */
 
 .timer-badge.timer-stopped {
     color: var(--text-muted);
     background: var(--background-modifier-active-hover);
     border: 1px solid var(--background-modifier-border);
+}
+
+.timer-badge.timer-countdown.timer-stopped {
+    color: color-mix(in srgb, var(--text-accent) 50%, var(--text-muted));
+    background: rgba(var(--color-blue-rgb), 0.08);
+    border: 1px solid rgba(var(--color-blue-rgb), 0.2);
 }
 
 /* ── Countdown spacing ───────────────────────────────────────────── */
@@ -65,7 +78,7 @@
 
 /* Pause glow animation while hovering so the hover shadow wins */
 .timer-badge.timer-running:hover {
-    animation: none;
+    animation-play-state: paused;
 }
 
 /* ── Smooth breathing glow ───────────────────────────────────────── */

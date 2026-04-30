@@ -16,6 +16,7 @@ import {
     stopData,
     TIMER_MUTATED_EVENT,
     playCompletionSound,
+    ariaLabel,
 } from './timer';
 import { TimerSettings } from './types';
 import { timerRegex, render, extractTimerData, computeRemovalRange } from './editor';
@@ -102,6 +103,9 @@ class TimerWidget extends WidgetType {
     toDOM(view: EditorView): HTMLElement {
         const el = document.createElement('span');
         el.className = `timer-badge timer-${this.data.kind} timer-${this.data.state}`;
+        el.setAttribute('role', 'button');
+        el.setAttribute('tabindex', '0');
+        el.setAttribute('aria-label', ariaLabel(this.data));
 
         /** Always re‑locate before mutating so positions are never stale */
         const locate = (): LocatedTimer | null => locateTimer(view, el, this.data.id);
@@ -138,6 +142,7 @@ class TimerWidget extends WidgetType {
             this.isFirstRender = false;
             el.className = `timer-badge timer-${this.data.kind} timer-${this.data.state}`;
             el.textContent = renderDisplay(this.data);
+            el.setAttribute('aria-label', ariaLabel(this.data));
         };
 
         const openMenu = (event: MouseEvent) => {

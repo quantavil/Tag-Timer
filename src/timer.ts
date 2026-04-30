@@ -189,7 +189,7 @@ export function playCompletionSound(type: SoundType = 'chime') {
 /** Both stopwatch and countdown use ⏳/⌛ when running */
 export function renderDisplay(data: TimerData): string {
     const shown = data.kind === 'countdown'
-        ? currentRemaining(data)
+        ? (data.state === 'stopped' ? currentElapsed(data) : currentRemaining(data))
         : currentElapsed(data);
 
     let icon: string;
@@ -203,4 +203,13 @@ export function renderDisplay(data: TimerData): string {
     }
 
     return `${icon} ${formatDuration(shown)}`;
+}
+
+export function ariaLabel(data: TimerData): string {
+    const kind = data.kind === 'countdown' ? 'Countdown' : 'Stopwatch';
+    const state = data.state.charAt(0).toUpperCase() + data.state.slice(1);
+    const shown = data.kind === 'countdown'
+        ? (data.state === 'stopped' ? currentElapsed(data) : currentRemaining(data))
+        : currentElapsed(data);
+    return `${kind} ${state}: ${formatDuration(shown)}`;
 }
